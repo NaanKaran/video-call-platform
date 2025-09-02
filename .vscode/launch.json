@@ -1,0 +1,61 @@
+{
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "type": "chrome",
+      "request": "launch",
+      "name": "Debug Vite React (Chrome)",
+      "url": "http://localhost:5173",
+      "webRoot": "${workspaceFolder}/frontend",
+      "sourceMaps": true,
+      "userDataDir": false,
+      "runtimeArgs": [
+        "--disable-features=VizDisplayCompositor"
+      ]
+    },
+    {
+      "type": "node",
+      "request": "launch",
+      "name": "Debug Backend (npm run dev)",
+      "cwd": "${workspaceFolder}/backend",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": ["run", "dev"],
+      "env": {
+        "NODE_ENV": "development"
+      },
+      "console": "integratedTerminal",
+      "internalConsoleOptions": "neverOpen",
+      "skipFiles": [
+        "<node_internals>/**",
+        "${workspaceFolder}/backend/node_modules/**"
+      ]
+    },
+    {
+      "type": "node",
+      "request": "launch", 
+      "name": "Start Vite Dev Server",
+      "cwd": "${workspaceFolder}/frontend",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": ["run", "dev"],
+      "console": "integratedTerminal",
+      "internalConsoleOptions": "neverOpen"
+    }
+  ],
+  "compounds": [
+    {
+      "name": "Debug All",
+      "configurations": [
+        "Debug Backend (npm run dev)",
+        "Start Vite Dev Server"
+      ]
+    },
+    {
+      "name": "Debug Frontend with Chrome",
+      "configurations": [
+        "Start Vite Dev Server",
+        "Debug Vite React (Chrome)"
+      ],
+      "stopAll": true
+    }
+  ]
+}

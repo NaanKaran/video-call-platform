@@ -1,0 +1,716 @@
+openapi: 3.0.0
+info:
+  title: Video Call Platform API
+  description: API for video call platform with user authentication and session management
+  version: 1.0.0
+servers:
+  - url: http://localhost:3000/api
+    description: Development server
+
+tags:
+  - name: auth
+    description: Authentication endpoints
+  - name: users
+    description: User management endpoints  
+  - name: sessions
+    description: Session management endpoints
+
+paths:
+  # Authentication endpoints
+  /auth/signup:
+    post:
+      tags:
+        - auth
+      summary: Register a new user
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateUserDto'
+      responses:
+        '201':
+          description: User created successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    $ref: '#/components/schemas/UserResponse'
+                  message:
+                    type: string
+                    example: signup
+        '400':
+          description: Bad Request
+        '409':
+          description: Email already exists
+        '500':
+          description: Server Error
+
+  /auth/login:
+    post:
+      tags:
+        - auth
+      summary: Login user
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LoginDto'
+      responses:
+        '200':
+          description: Login successful
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: object
+                    properties:
+                      user:
+                        $ref: '#/components/schemas/UserResponse'
+                      token:
+                        type: string
+                  message:
+                    type: string
+                    example: login
+        '400':
+          description: Bad Request
+        '409':
+          description: Invalid credentials
+        '500':
+          description: Server Error
+
+  /auth/logout:
+    post:
+      tags:
+        - auth
+      summary: Logout user
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Logout successful
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    $ref: '#/components/schemas/UserResponse'
+                  message:
+                    type: string
+                    example: logout
+        '400':
+          description: Bad Request
+        '500':
+          description: Server Error
+
+  # User endpoints
+  /users:
+    get:
+      tags:
+        - users
+      summary: Get all users
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Users retrieved successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/UserResponse'
+                  message:
+                    type: string
+                    example: findAll
+        '500':
+          description: Server Error
+
+    post:
+      tags:
+        - users
+      summary: Create a new user
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/User'
+      responses:
+        '201':
+          description: User created successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    $ref: '#/components/schemas/UserResponse'
+                  message:
+                    type: string
+                    example: created
+        '400':
+          description: Bad Request
+        '409':
+          description: Conflict
+        '500':
+          description: Server Error
+
+  /users/{id}:
+    get:
+      tags:
+        - users
+      summary: Get user by ID
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: User ID
+          schema:
+            type: string
+      responses:
+        '200':
+          description: User retrieved successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    $ref: '#/components/schemas/UserResponse'
+                  message:
+                    type: string
+                    example: findOne
+        '409':
+          description: User not found
+        '500':
+          description: Server Error
+
+    put:
+      tags:
+        - users
+      summary: Update user by ID
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: User ID
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateUserDto'
+      responses:
+        '200':
+          description: User updated successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    $ref: '#/components/schemas/UserResponse'
+                  message:
+                    type: string
+                    example: updated
+        '400':
+          description: Bad Request
+        '409':
+          description: User not found
+        '500':
+          description: Server Error
+
+    delete:
+      tags:
+        - users
+      summary: Delete user by ID
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: User ID
+          schema:
+            type: string
+      responses:
+        '200':
+          description: User deleted successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    $ref: '#/components/schemas/UserResponse'
+                  message:
+                    type: string
+                    example: deleted
+        '409':
+          description: User not found
+        '500':
+          description: Server Error
+
+  # Session endpoints
+  /sessions:
+    get:
+      tags:
+        - sessions
+      summary: Get sessions (educator's sessions or participant's sessions based on role)
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Sessions retrieved successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Session'
+                  message:
+                    type: string
+                    example: findAll
+        '500':
+          description: Server Error
+
+    post:
+      tags:
+        - sessions
+      summary: Create a new session (educators only)
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateSessionDto'
+      responses:
+        '201':
+          description: Session created successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    $ref: '#/components/schemas/Session'
+                  message:
+                    type: string
+                    example: created
+        '400':
+          description: Bad Request
+        '403':
+          description: Only educators can create sessions
+        '500':
+          description: Server Error
+
+  /sessions/{id}:
+    get:
+      tags:
+        - sessions
+      summary: Get session by ID
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: Session ID
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Session retrieved successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    $ref: '#/components/schemas/Session'
+                  message:
+                    type: string
+                    example: findOne
+        '409':
+          description: Session not found
+        '500':
+          description: Server Error
+
+    put:
+      tags:
+        - sessions
+      summary: Update session status (educators only)
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: Session ID
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                status:
+                  type: string
+                  enum: [scheduled, active, ended]
+      responses:
+        '200':
+          description: Session updated successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    $ref: '#/components/schemas/Session'
+                  message:
+                    type: string
+                    example: updated
+        '400':
+          description: Bad Request
+        '403':
+          description: Not authorized to update this session
+        '500':
+          description: Server Error
+
+    delete:
+      tags:
+        - sessions
+      summary: Delete session by ID (educators only)
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: Session ID
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Session deleted successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    $ref: '#/components/schemas/Session'
+                  message:
+                    type: string
+                    example: deleted
+        '403':
+          description: Not authorized to delete this session
+        '409':
+          description: Session not found
+        '500':
+          description: Server Error
+
+  /sessions/code/{code}:
+    get:
+      tags:
+        - sessions
+      summary: Get session by code
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: code
+          in: path
+          required: true
+          description: Session code
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Session retrieved successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    $ref: '#/components/schemas/Session'
+                  message:
+                    type: string
+                    example: findByCode
+        '409':
+          description: Session not found
+        '500':
+          description: Server Error
+
+  /sessions/join:
+    post:
+      tags:
+        - sessions
+      summary: Join a session by code
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/JoinSessionDto'
+      responses:
+        '200':
+          description: Joined session successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    $ref: '#/components/schemas/Session'
+                  message:
+                    type: string
+                    example: joined
+        '400':
+          description: Bad Request or session has ended
+        '409':
+          description: Session not found
+        '500':
+          description: Server Error
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+
+  schemas:
+    CreateUserDto:
+      type: object
+      required:
+        - name
+        - email
+        - password
+        - role
+      properties:
+        name:
+          type: string
+          minLength: 2
+          maxLength: 50
+          description: User's full name
+        email:
+          type: string
+          format: email
+          description: User's email address
+        password:
+          type: string
+          minLength: 6
+          maxLength: 32
+          description: User's password
+        role:
+          type: string
+          enum: [educator, child]
+          description: User's role in the platform
+
+    UpdateUserDto:
+      type: object
+      properties:
+        name:
+          type: string
+          minLength: 2
+          maxLength: 50
+          description: User's full name
+        password:
+          type: string
+          minLength: 6
+          maxLength: 32
+          description: User's new password
+
+    LoginDto:
+      type: object
+      required:
+        - email
+        - password
+      properties:
+        email:
+          type: string
+          format: email
+          description: User's email address
+        password:
+          type: string
+          description: User's password
+
+    User:
+      type: object
+      required:
+        - name
+        - email
+        - password
+        - role
+      properties:
+        _id:
+          type: string
+          description: User's unique identifier
+        name:
+          type: string
+          description: User's full name
+        email:
+          type: string
+          format: email
+          description: User's email address
+        password:
+          type: string
+          description: User's hashed password
+        role:
+          type: string
+          enum: [educator, child]
+          description: User's role in the platform
+        createdAt:
+          type: string
+          format: date-time
+          description: When the user was created
+        updatedAt:
+          type: string
+          format: date-time
+          description: When the user was last updated
+
+    UserResponse:
+      type: object
+      properties:
+        _id:
+          type: string
+          description: User's unique identifier
+        name:
+          type: string
+          description: User's full name
+        email:
+          type: string
+          format: email
+          description: User's email address
+        role:
+          type: string
+          enum: [educator, child]
+          description: User's role in the platform
+        createdAt:
+          type: string
+          format: date-time
+          description: When the user was created
+        updatedAt:
+          type: string
+          format: date-time
+          description: When the user was last updated
+
+    CreateSessionDto:
+      type: object
+      required:
+        - name
+        - scheduled_time
+      properties:
+        name:
+          type: string
+          minLength: 3
+          maxLength: 100
+          description: Session name or title
+        scheduled_time:
+          type: string
+          format: date-time
+          description: When the session is scheduled to start
+        duration:
+          type: number
+          minimum: 15
+          maximum: 240
+          description: Session duration in minutes (optional, defaults to 60)
+
+    JoinSessionDto:
+      type: object
+      required:
+        - session_code
+      properties:
+        session_code:
+          type: string
+          description: Unique session code to join
+
+    UpdateSessionDto:
+      type: object
+      properties:
+        name:
+          type: string
+          minLength: 3
+          maxLength: 100
+          description: Session name or title
+        scheduled_time:
+          type: string
+          format: date-time
+          description: When the session is scheduled to start
+        duration:
+          type: number
+          minimum: 15
+          maximum: 240
+          description: Session duration in minutes
+
+    Session:
+      type: object
+      properties:
+        _id:
+          type: string
+          description: Session's unique identifier
+        name:
+          type: string
+          description: Session name or title
+        session_code:
+          type: string
+          description: Unique session code for joining
+        educator_id:
+          oneOf:
+            - type: string
+            - $ref: '#/components/schemas/UserResponse'
+          description: ID of the educator or populated educator object
+        participants:
+          type: array
+          items:
+            oneOf:
+              - type: string
+              - $ref: '#/components/schemas/UserResponse'
+          description: Array of participant IDs or populated participant objects
+        scheduled_time:
+          type: string
+          format: date-time
+          description: When the session is scheduled to start
+        duration:
+          type: number
+          description: Session duration in minutes
+        status:
+          type: string
+          enum: [scheduled, active, ended]
+          description: Current status of the session
+        createdAt:
+          type: string
+          format: date-time
+          description: When the session was created
+        updatedAt:
+          type: string
+          format: date-time
+          description: When the session was last updated
