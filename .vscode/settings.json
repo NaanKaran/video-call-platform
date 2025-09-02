@@ -2,5 +2,11 @@
   "editor.codeActionsOnSave": {
     "source.fixAll.eslint": "explicit"
   },
-  "editor.formatOnSave": false
+  "editor.formatOnSave": false,
+  "appService.zipIgnorePattern": [
+    "node_modules{,/**}",
+    ".vscode{,/**}"
+  ],
+  "appService.defaultWebAppToDeploy": "/subscriptions/9a8fc53e-5fa7-4fe1-a5d8-d541aaed8973/resourceGroups/MindBridge-RG/providers/Microsoft.Web/sites/mindbridge-api",
+  "appService.deploySubpath": "backend"
 }
