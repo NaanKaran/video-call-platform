@@ -43,3 +43,18 @@ export interface ParticipantInfo {
   isConnected: boolean;
   joinedAt: Date;
 }
+
+export interface ChatMessage {
+  id: string;
+  sessionId: string;
+  userId: string;
+  userName: string;
+  message: string;
+  timestamp: Date;
+  type: 'text' | 'system';
+}
+
+export interface SendChatMessageData {
+  sessionId: string;
+  message: string;
+}

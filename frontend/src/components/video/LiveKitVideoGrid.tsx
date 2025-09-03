@@ -1,21 +1,22 @@
-import React, { useRef, useEffect } from 'react';
+import React, { useRef, useEffect, useState } from 'react';
 import {
-  Track,
   Participant,
   LocalParticipant,
-  RemoteParticipant,
 } from 'livekit-client';
 import { MicrophoneIcon as MicrophoneOffIcon, VideoCameraSlashIcon } from '@heroicons/react/24/solid';
 import { UserGroupIcon } from '@heroicons/react/24/outline';
 import { clsx } from 'clsx';
+import userService from '../../services/userService';
+import type { User } from '../../types';
 
 interface LiveKitVideoGridProps {
   participants: Participant[];
   localParticipant: LocalParticipant | null;
+  userMap?: Map<string, User>;
 }
 
 // Custom participant tile component
-const CustomParticipantTile: React.FC<{ participant: Participant }> = ({ participant }) => {
+const CustomParticipantTile: React.FC<{ participant: Participant; userMap?: Map<string, User> }> = ({ participant, userMap }) => {
   const videoRef = useRef<HTMLVideoElement>(null);
   const audioRef = useRef<HTMLAudioElement>(null);
 
@@ -30,6 +31,20 @@ const CustomParticipantTile: React.FC<{ participant: Participant }> = ({ partici
   const isLocal = participant instanceof LocalParticipant;
   const isMuted = !audioTrack?.isEnabled;
   const isVideoOff = !videoTrack?.isEnabled;
+
+  // Get user name from backend data, fallback to participant name or identity
+  const getUserDisplayName = (): string => {
+    // Try to find user by identity (email or user ID)
+    const backendUser = userMap?.get(participant.identity);
+    if (backendUser) {
+      return backendUser.name;
+    }
+    
+    // Fallback to participant name or identity
+    return participant.name || participant.identity;
+  };
+
+  const displayName = getUserDisplayName();
 
   // Debug logging
   useEffect(() => {
@@ -104,11 +119,11 @@ const CustomParticipantTile: React.FC<{ participant: Participant }> = ({ partici
           <div className="text-center">
             <div className="w-12 h-12 bg-[#6264a7] rounded-full flex items-center justify-center mx-auto mb-2">
               <span className="text-lg font-semibold text-white">
-                {participant.name?.charAt(0).toUpperCase() || participant.identity.charAt(0).toUpperCase()}
+                {displayName.charAt(0).toUpperCase()}
               </span>
             </div>
             <p className="text-white text-xs font-medium">
-              {participant.name || participant.identity}
+              {displayName}
             </p>
             {isLocal && <p className="text-gray-400 text-xs mt-0.5">You</p>}
           </div>
@@ -117,7 +132,7 @@ const CustomParticipantTile: React.FC<{ participant: Participant }> = ({ partici
 
       {/* Teams-style name badge */}
       <div className="absolute bottom-2 left-2 bg-[#1e1e1e] bg-opacity-75 text-white px-2 py-1 rounded-full text-xs font-medium">
-        {participant.name || participant.identity}
+        {displayName}
         {isLocal && <span className="text-gray-300"> (You)</span>}
       </div>
 
@@ -149,7 +164,21 @@ const CustomParticipantTile: React.FC<{ participant: Participant }> = ({ partici
 export const LiveKitVideoGrid: React.FC<LiveKitVideoGridProps> = ({
   participants,
   localParticipant,
+  userMap: providedUserMap,
 }) => {
+  const [userMap, setUserMap] = useState<Map<string, User>>(providedUserMap || new Map());
+
+  // Fetch user data if not provided
+  useEffect(() => {
+    if (!providedUserMap) {
+      userService.createUserMap()
+        .then(setUserMap)
+        .catch(error => {
+          console.error('Failed to fetch user data:', error);
+        });
+    }
+  }, [providedUserMap]);
+
   // Get all participants including local (ensure unique keys)
   const uniqueParticipants = new Map();
   
@@ -207,6 +236,7 @@ export const LiveKitVideoGrid: React.FC<LiveKitVideoGridProps> = ({
         <CustomParticipantTile
           key={participant.identity}
           participant={participant}
+          userMap={userMap}
         />
       ))}
     </div>

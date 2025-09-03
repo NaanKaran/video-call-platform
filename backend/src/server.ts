@@ -3,6 +3,7 @@ import { AuthRoute } from '@routes/auth.route';
 import { UserRoute } from '@routes/users.route';
 import { SessionsRoute } from '@routes/sessions.route';
 import { LiveKitRoute } from '@routes/livekit.route';
+import { ChatMessageRoute } from '@routes/chatMessages.route';
 
 async function bootstrap() {
    console.log("🚀 Starting server...");
@@ -13,6 +14,7 @@ async function bootstrap() {
       new UserRoute(),
       new SessionsRoute(),
       new LiveKitRoute(),
+      new ChatMessageRoute(),
     ]);
 
     app.listen();

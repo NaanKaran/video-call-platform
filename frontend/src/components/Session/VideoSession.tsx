@@ -11,7 +11,6 @@ import {
   HandRaisedIcon,
   EllipsisHorizontalIcon,
   Cog6ToothIcon,
-  SpeakerWaveIcon,
   VideoCameraSlashIcon
 } from '@heroicons/react/24/outline';
 import { 
@@ -22,8 +21,10 @@ import { ConnectionState } from 'livekit-client';
 import { useAuth } from '../../hooks/useAuth';
 import { useLiveKit } from '../../hooks/useLiveKit';
 import { LiveKitVideoGrid } from '../video/LiveKitVideoGrid';
+import { ChatPanel } from '../chat/ChatPanel';
 import type { Session } from '../../types';
 import sessionService from '../../services/sessionService';
+import chatService from '../../services/chatService';
 import { clsx } from 'clsx';
 
 // Video session component for conducting video calls
@@ -36,6 +37,7 @@ const VideoSession: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [hasJoinedCall, setHasJoinedCall] = useState(false);
+  const [isChatOpen, setIsChatOpen] = useState(false);
 
   // LiveKit hook
   const {
@@ -103,6 +105,7 @@ const VideoSession: React.FC = () => {
   // Leave the video call
   const handleLeaveCall = async () => {
     leaveSession();
+    chatService.disconnect();
     setHasJoinedCall(false);
     
     // Navigate back to dashboard
@@ -191,7 +194,16 @@ const VideoSession: React.FC = () => {
 
         <div className="flex items-center space-x-1">
           {/* Teams-style top controls */}
-          <button className="p-1.5 text-gray-400 hover:text-white hover:bg-[#3a3a3a] rounded transition-colors">
+          <button 
+            onClick={() => setIsChatOpen(!isChatOpen)}
+            className={clsx(
+              'p-1.5 rounded transition-colors',
+              isChatOpen 
+                ? 'text-[#6264a7] bg-[#3a3a3a]' 
+                : 'text-gray-400 hover:text-white hover:bg-[#3a3a3a]'
+            )}
+            title="Toggle chat"
+          >
             <ChatBubbleLeftIcon className="h-3.5 w-3.5" />
           </button>
           <button className="p-1.5 text-gray-400 hover:text-white hover:bg-[#3a3a3a] rounded transition-colors">
@@ -279,14 +291,28 @@ const VideoSession: React.FC = () => {
           </div>
         ) : (
           /* Teams-style Video call interface */
-          <div className="flex-1 flex flex-col relative min-h-0">
+          <div className="flex-1 flex relative min-h-0">
             {/* Main video area */}
-            <div className="flex-1 p-2 pb-16 min-h-0">
-              <LiveKitVideoGrid 
-                participants={participants}
-                localParticipant={localParticipant}
-              />
+            <div className={clsx(
+              'flex-1 flex flex-col relative min-h-0',
+              isChatOpen && 'pr-80'
+            )}>
+              <div className="flex-1 p-2 pb-16 min-h-0">
+                <LiveKitVideoGrid 
+                  participants={participants}
+                  localParticipant={localParticipant}
+                />
+              </div>
             </div>
+
+            {/* Chat Panel */}
+            {sessionId && (
+              <ChatPanel
+                sessionId={sessionId}
+                isOpen={isChatOpen}
+                onClose={() => setIsChatOpen(false)}
+              />
+            )}
 
             {/* Teams-style Control Bar */}
             <div className="absolute bottom-0 left-0 right-0 bg-[#292929] border-t border-[#3a3a3a] px-4 py-3 flex-shrink-0">
@@ -355,7 +381,16 @@ const VideoSession: React.FC = () => {
                   <button className="p-2.5 bg-[#3a3a3a] hover:bg-[#4a4a4a] rounded-full text-white transition-colors">
                     <HandRaisedIcon className="h-4 w-4" />
                   </button>
-                  <button className="p-2.5 bg-[#3a3a3a] hover:bg-[#4a4a4a] rounded-full text-white transition-colors">
+                  <button 
+                    onClick={() => setIsChatOpen(!isChatOpen)}
+                    className={clsx(
+                      'p-2.5 rounded-full text-white transition-colors',
+                      isChatOpen
+                        ? 'bg-[#6264a7] hover:bg-[#5a5c9e]'
+                        : 'bg-[#3a3a3a] hover:bg-[#4a4a4a]'
+                    )}
+                    title="Toggle chat"
+                  >
                     <ChatBubbleLeftIcon className="h-4 w-4" />
                   </button>
                   <button className="p-2.5 bg-[#3a3a3a] hover:bg-[#4a4a4a] rounded-full text-white transition-colors">

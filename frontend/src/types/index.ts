@@ -67,6 +67,22 @@ export interface Participant {
   audioEnabled: boolean;
 }
 
+// Chat types
+export interface ChatMessage {
+  id: string;
+  sessionId: string;
+  userId: string;
+  userName: string;
+  message: string;
+  timestamp: string;
+  type: 'text' | 'system';
+}
+
+export interface SendChatMessageData {
+  sessionId: string;
+  message: string;
+}
+
 // Socket events
 export interface SocketEvents {
   // Room events
@@ -83,6 +99,10 @@ export interface SocketEvents {
   // Media controls
   'toggle-video': (data: { userId: string; enabled: boolean }) => void;
   'toggle-audio': (data: { userId: string; enabled: boolean }) => void;
+
+  // Chat events
+  'chat-message': (data: ChatMessage) => void;
+  'send-chat-message': (data: SendChatMessageData) => void;
 }
 
 // API Response types
