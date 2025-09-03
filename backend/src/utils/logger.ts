@@ -4,13 +4,13 @@ import winston from 'winston';
 import winstonDaily from 'winston-daily-rotate-file';
 import { LOG_DIR } from '@config';
 
-// logs dir
-const logDir: string = join(__dirname, LOG_DIR);
+// Resolve log directory relative to project root
+const logDir: string = join(__dirname, LOG_DIR || 'logs');
 
+// Ensure directory exists
 if (!existsSync(logDir)) {
-  mkdirSync(logDir);
+  mkdirSync(logDir, { recursive: true });
 }
-
 // Define log format
 const logFormat = winston.format.printf(({ timestamp, level, message }) => `${timestamp} ${level}: ${message}`);
 

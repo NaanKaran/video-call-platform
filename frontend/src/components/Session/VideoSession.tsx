@@ -5,17 +5,25 @@ import {
   VideoCameraIcon,
   PhoneXMarkIcon,
   ArrowLeftIcon,
-  UserGroupIcon
+  UserGroupIcon,
+  ComputerDesktopIcon,
+  ChatBubbleLeftIcon,
+  HandRaisedIcon,
+  EllipsisHorizontalIcon,
+  Cog6ToothIcon,
+  SpeakerWaveIcon,
+  VideoCameraSlashIcon
 } from '@heroicons/react/24/outline';
 import { 
   MicrophoneIcon as MicrophoneOffIcon, 
   VideoCameraIcon as VideoCameraOffIcon 
 } from '@heroicons/react/24/solid';
+import { ConnectionState } from 'livekit-client';
 import { useAuth } from '../../hooks/useAuth';
-import { useWebRTC } from '../../hooks/useWebRTC';
-import { Session, Participant } from '../../types';
+import { useLiveKit } from '../../hooks/useLiveKit';
+import { LiveKitVideoGrid } from '../video/LiveKitVideoGrid';
+import type { Session } from '../../types';
 import sessionService from '../../services/sessionService';
-import socketService from '../../services/socketService';
 import { clsx } from 'clsx';
 
 // Video session component for conducting video calls
@@ -29,18 +37,22 @@ const VideoSession: React.FC = () => {
   const [error, setError] = useState('');
   const [hasJoinedCall, setHasJoinedCall] = useState(false);
 
-  // WebRTC hook
+  // LiveKit hook
   const {
+    room,
     participants,
-    localStream,
-    localVideoRef,
-    mediaDevices,
+    localParticipant,
+    connectionState,
     isConnecting,
+    error: liveKitError,
+    mediaDevices,
+    isScreenSharing,
     joinSession,
     leaveSession,
     toggleVideo,
     toggleAudio,
-  } = useWebRTC(sessionId || '', user?._id || '');
+    toggleScreenShare,
+  } = useLiveKit(sessionId || '', user?._id || '');
 
   // Load session details
   useEffect(() => {
@@ -64,16 +76,12 @@ const VideoSession: React.FC = () => {
     loadSession();
   }, [sessionId]);
 
-  // Connect to socket when component mounts
+  // Handle LiveKit errors
   useEffect(() => {
-    if (user?._id) {
-      socketService.connect(user._id);
+    if (liveKitError) {
+      setError(liveKitError);
     }
-
-    return () => {
-      socketService.disconnect();
-    };
-  }, [user]);
+  }, [liveKitError]);
 
   // Join the video call
   const handleJoinCall = async () => {
@@ -155,159 +163,221 @@ const VideoSession: React.FC = () => {
   }
 
   return (
-    <div className="min-h-screen bg-gray-900">
-      {/* Header */}
-      <div className="bg-gray-800 border-b border-gray-700 px-4 py-3">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center space-x-4">
-            <button
-              onClick={() => navigate('/dashboard')}
-              className="text-gray-400 hover:text-white"
-            >
-              <ArrowLeftIcon className="h-5 w-5" />
-            </button>
-            
+    <div className="min-h-screen max-h-screen bg-[#1e1e1e] flex flex-col overflow-hidden">
+      {/* Teams-style Header */}
+      <div className="bg-[#292929] border-b border-[#3a3a3a] px-3 py-1.5 flex items-center justify-between flex-shrink-0">
+        <div className="flex items-center space-x-2">
+          <button
+            onClick={() => navigate('/dashboard')}
+            className="text-gray-400 hover:text-white p-1.5 rounded hover:bg-[#3a3a3a] transition-colors"
+          >
+            <ArrowLeftIcon className="h-3.5 w-3.5" />
+          </button>
+          
+          <div className="flex items-center space-x-2">
+            <div className="w-6 h-6 bg-[#6264a7] rounded flex items-center justify-center">
+              <VideoCameraIcon className="h-3.5 w-3.5 text-white" />
+            </div>
             <div>
-              <h1 className="text-lg font-semibold text-white">{session.name}</h1>
-              <div className="flex items-center space-x-4 text-sm text-gray-400">
-                <span>Code: {session.session_code}</span>
-                <div className="flex items-center space-x-1">
-                  <UserGroupIcon className="h-4 w-4" />
-                  <span>{participants.length + (hasJoinedCall ? 1 : 0)} participants</span>
-                </div>
-                <span className={clsx(
-                  'px-2 py-1 text-xs font-medium rounded-full',
-                  session.status === 'active' ? 'bg-green-900 text-green-300' : 'bg-blue-900 text-blue-300'
-                )}>
-                  {session.status}
-                </span>
+              <h1 className="text-xs font-medium text-white truncate max-w-48">{session.name}</h1>
+              <div className="flex items-center space-x-2 text-xs text-gray-400">
+                <span>{connectionState === ConnectionState.Connected ? participants.length + (localParticipant ? 1 : 0) : 0} people</span>
+                <span>•</span>
+                <span className="truncate">{session.session_code}</span>
               </div>
             </div>
           </div>
+        </div>
 
+        <div className="flex items-center space-x-1">
+          {/* Teams-style top controls */}
+          <button className="p-1.5 text-gray-400 hover:text-white hover:bg-[#3a3a3a] rounded transition-colors">
+            <ChatBubbleLeftIcon className="h-3.5 w-3.5" />
+          </button>
+          <button className="p-1.5 text-gray-400 hover:text-white hover:bg-[#3a3a3a] rounded transition-colors">
+            <UserGroupIcon className="h-3.5 w-3.5" />
+          </button>
+          <button className="p-1.5 text-gray-400 hover:text-white hover:bg-[#3a3a3a] rounded transition-colors">
+            <EllipsisHorizontalIcon className="h-3.5 w-3.5" />
+          </button>
+          
           {/* End session button (educators only) */}
           {user?.role === 'educator' && hasJoinedCall && (
             <button
               onClick={handleEndSession}
-              className="px-3 py-2 bg-red-600 text-white text-sm rounded-lg hover:bg-red-700 transition-colors"
+              className="ml-1 px-2 py-1 bg-[#c4314b] text-white text-xs font-medium rounded hover:bg-[#a92e46] transition-colors"
             >
-              End Session
+              End
             </button>
           )}
         </div>
       </div>
 
-      {/* Main content */}
-      <div className="flex-1 p-4">
+      {/* Main content area */}
+      <div className="flex-1 flex flex-col overflow-hidden">
         {!hasJoinedCall ? (
-          /* Pre-join screen */
-          <div className="max-w-md mx-auto mt-16">
-            <div className="bg-gray-800 rounded-lg p-8 text-center">
-              <div className="mb-6">
-                <div className="mx-auto w-16 h-16 bg-blue-600 rounded-full flex items-center justify-center mb-4">
-                  <VideoCameraIcon className="h-8 w-8 text-white" />
+          /* Teams-style Pre-join screen */
+          <div className="flex-1 flex items-center justify-center bg-[#1e1e1e] p-4">
+            <div className="max-w-md w-full mx-auto">
+              {/* Preview area */}
+              <div className="bg-[#292929] rounded-lg p-4 mb-4">
+                <div className="aspect-video bg-[#3a3a3a] rounded-lg mb-3 flex items-center justify-center">
+                  <div className="text-center">
+                    <div className="w-12 h-12 bg-[#6264a7] rounded-full flex items-center justify-center mx-auto mb-2">
+                      <span className="text-lg font-semibold text-white">
+                        {user?.name?.charAt(0).toUpperCase()}
+                      </span>
+                    </div>
+                    <p className="text-gray-400 text-xs">Your camera is off</p>
+                  </div>
                 </div>
-                <h2 className="text-xl font-semibold text-white mb-2">Ready to join?</h2>
-                <p className="text-gray-400">
-                  Click the button below to join the video session
+                
+                {/* Pre-join controls */}
+                <div className="flex items-center justify-center space-x-2">
+                  <button className="p-2.5 bg-[#3a3a3a] hover:bg-[#4a4a4a] rounded-full transition-colors">
+                    <MicrophoneOffIcon className="h-4 w-4 text-white" />
+                  </button>
+                  <button className="p-2.5 bg-[#3a3a3a] hover:bg-[#4a4a4a] rounded-full transition-colors">
+                    <VideoCameraSlashIcon className="h-4 w-4 text-white" />
+                  </button>
+                  <button className="p-2.5 bg-[#3a3a3a] hover:bg-[#4a4a4a] rounded-full transition-colors">
+                    <Cog6ToothIcon className="h-4 w-4 text-white" />
+                  </button>
+                </div>
+              </div>
+
+              {/* Meeting info */}
+              <div className="text-center mb-4">
+                <h2 className="text-lg font-semibold text-white mb-1 truncate">{session.name}</h2>
+                <p className="text-gray-400 text-sm mb-0.5 truncate">
+                  {typeof session.educator_id === 'object' 
+                    ? `Hosted by ${session.educator_id.name}` 
+                    : 'Meeting'}
                 </p>
+                <p className="text-gray-500 text-xs">ID: {session.session_code}</p>
               </div>
 
-              <div className="space-y-4">
-                <div className="text-sm text-gray-400">
-                  <p><strong>Session:</strong> {session.name}</p>
-                  <p><strong>Educator:</strong> {
-                    typeof session.educator_id === 'object' 
-                      ? session.educator_id.name 
-                      : 'Educator'
-                  }</p>
-                  <p><strong>Your name:</strong> {user?.name}</p>
-                </div>
-
-                <button
-                  onClick={handleJoinCall}
-                  disabled={isConnecting}
-                  className="w-full py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex items-center justify-center"
-                >
-                  {isConnecting ? (
-                    <>
-                      <svg className="animate-spin -ml-1 mr-2 h-4 w-4 text-white" fill="none" viewBox="0 0 24 24">
-                        <circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" className="opacity-25" />
-                        <path fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" className="opacity-75" />
-                      </svg>
-                      Connecting...
-                    </>
-                  ) : (
-                    <>
-                      <VideoCameraIcon className="h-5 w-5 mr-2" />
-                      Join Video Call
-                    </>
-                  )}
-                </button>
-              </div>
+              {/* Join button */}
+              <button
+                onClick={handleJoinCall}
+                disabled={isConnecting}
+                className="w-full py-2.5 bg-[#6264a7] text-white rounded-lg hover:bg-[#5a5c9e] disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex items-center justify-center font-medium text-sm"
+              >
+                {isConnecting ? (
+                  <>
+                    <svg className="animate-spin -ml-1 mr-2 h-3.5 w-3.5 text-white" fill="none" viewBox="0 0 24 24">
+                      <circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" className="opacity-25" />
+                      <path fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" className="opacity-75" />
+                    </svg>
+                    Joining...
+                  </>
+                ) : (
+                  'Join now'
+                )}
+              </button>
             </div>
           </div>
         ) : (
-          /* Video call interface */
-          <div className="h-full flex flex-col">
-            {/* Video grid */}
-            <div className="flex-1 mb-4">
-              <VideoGrid 
-                localVideoRef={localVideoRef}
-                localStream={localStream}
+          /* Teams-style Video call interface */
+          <div className="flex-1 flex flex-col relative min-h-0">
+            {/* Main video area */}
+            <div className="flex-1 p-2 pb-16 min-h-0">
+              <LiveKitVideoGrid 
                 participants={participants}
-                currentUser={user}
-                mediaDevices={mediaDevices}
+                localParticipant={localParticipant}
               />
             </div>
 
-            {/* Controls */}
-            <div className="flex justify-center">
-              <div className="flex items-center space-x-4 bg-gray-800 rounded-lg px-6 py-3">
-                {/* Audio toggle */}
-                <button
-                  onClick={toggleAudio}
-                  className={clsx(
-                    'p-3 rounded-full transition-colors',
-                    mediaDevices.audio
-                      ? 'bg-gray-700 hover:bg-gray-600 text-white'
-                      : 'bg-red-600 hover:bg-red-700 text-white'
-                  )}
-                  title={mediaDevices.audio ? 'Mute microphone' : 'Unmute microphone'}
-                >
-                  {mediaDevices.audio ? (
-                    <MicrophoneIcon className="h-5 w-5" />
-                  ) : (
-                    <MicrophoneOffIcon className="h-5 w-5" />
-                  )}
-                </button>
+            {/* Teams-style Control Bar */}
+            <div className="absolute bottom-0 left-0 right-0 bg-[#292929] border-t border-[#3a3a3a] px-4 py-3 flex-shrink-0">
+              <div className="flex items-center justify-between max-w-6xl mx-auto">
+                {/* Left controls */}
+                <div className="flex items-center space-x-2">
+                  {/* Audio toggle */}
+                  <button
+                    onClick={toggleAudio}
+                    className={clsx(
+                      'p-2.5 rounded-full transition-colors relative',
+                      mediaDevices.audio
+                        ? 'bg-[#3a3a3a] hover:bg-[#4a4a4a] text-white'
+                        : 'bg-[#c4314b] hover:bg-[#a92e46] text-white'
+                    )}
+                    title={mediaDevices.audio ? 'Mute' : 'Unmute'}
+                  >
+                    {mediaDevices.audio ? (
+                      <MicrophoneIcon className="h-4 w-4" />
+                    ) : (
+                      <MicrophoneOffIcon className="h-4 w-4" />
+                    )}
+                    {!mediaDevices.audio && (
+                      <div className="absolute -top-0.5 -right-0.5 w-2.5 h-2.5 bg-red-500 rounded-full" />
+                    )}
+                  </button>
 
-                {/* Video toggle */}
-                <button
-                  onClick={toggleVideo}
-                  className={clsx(
-                    'p-3 rounded-full transition-colors',
-                    mediaDevices.video
-                      ? 'bg-gray-700 hover:bg-gray-600 text-white'
-                      : 'bg-red-600 hover:bg-red-700 text-white'
-                  )}
-                  title={mediaDevices.video ? 'Turn off camera' : 'Turn on camera'}
-                >
-                  {mediaDevices.video ? (
-                    <VideoCameraIcon className="h-5 w-5" />
-                  ) : (
-                    <VideoCameraOffIcon className="h-5 w-5" />
-                  )}
-                </button>
+                  {/* Video toggle */}
+                  <button
+                    onClick={toggleVideo}
+                    className={clsx(
+                      'p-2.5 rounded-full transition-colors relative',
+                      mediaDevices.video
+                        ? 'bg-[#3a3a3a] hover:bg-[#4a4a4a] text-white'
+                        : 'bg-[#c4314b] hover:bg-[#a92e46] text-white'
+                    )}
+                    title={mediaDevices.video ? 'Turn off camera' : 'Turn on camera'}
+                  >
+                    {mediaDevices.video ? (
+                      <VideoCameraIcon className="h-4 w-4" />
+                    ) : (
+                      <VideoCameraOffIcon className="h-4 w-4" />
+                    )}
+                    {!mediaDevices.video && (
+                      <div className="absolute -top-0.5 -right-0.5 w-2.5 h-2.5 bg-red-500 rounded-full" />
+                    )}
+                  </button>
 
-                {/* Leave call */}
-                <button
-                  onClick={handleLeaveCall}
-                  className="p-3 bg-red-600 hover:bg-red-700 rounded-full text-white transition-colors"
-                  title="Leave session"
-                >
-                  <PhoneXMarkIcon className="h-5 w-5" />
-                </button>
+                  {/* Screen share toggle */}
+                  <button
+                    onClick={toggleScreenShare}
+                    className={clsx(
+                      'p-2.5 rounded-full transition-colors',
+                      isScreenSharing
+                        ? 'bg-[#6264a7] hover:bg-[#5a5c9e] text-white'
+                        : 'bg-[#3a3a3a] hover:bg-[#4a4a4a] text-white'
+                    )}
+                    title={isScreenSharing ? 'Stop presenting' : 'Share content'}
+                  >
+                    <ComputerDesktopIcon className="h-4 w-4" />
+                  </button>
+                </div>
+
+                {/* Center controls */}
+                <div className="flex items-center space-x-2">
+                  <button className="p-2.5 bg-[#3a3a3a] hover:bg-[#4a4a4a] rounded-full text-white transition-colors">
+                    <HandRaisedIcon className="h-4 w-4" />
+                  </button>
+                  <button className="p-2.5 bg-[#3a3a3a] hover:bg-[#4a4a4a] rounded-full text-white transition-colors">
+                    <ChatBubbleLeftIcon className="h-4 w-4" />
+                  </button>
+                  <button className="p-2.5 bg-[#3a3a3a] hover:bg-[#4a4a4a] rounded-full text-white transition-colors">
+                    <UserGroupIcon className="h-4 w-4" />
+                  </button>
+                  <button className="p-2.5 bg-[#3a3a3a] hover:bg-[#4a4a4a] rounded-full text-white transition-colors">
+                    <EllipsisHorizontalIcon className="h-4 w-4" />
+                  </button>
+                </div>
+
+                {/* Right controls */}
+                <div className="flex items-center">
+                  {/* Leave call */}
+                  <button
+                    onClick={handleLeaveCall}
+                    className="px-3 py-2 bg-[#c4314b] hover:bg-[#a92e46] rounded text-white text-xs font-medium transition-colors flex items-center space-x-1.5"
+                    title="Leave"
+                  >
+                    <PhoneXMarkIcon className="h-3.5 w-3.5" />
+                    <span>Leave</span>
+                  </button>
+                </div>
               </div>
             </div>
           </div>
@@ -317,143 +387,5 @@ const VideoSession: React.FC = () => {
   );
 };
 
-// Video grid component
-interface VideoGridProps {
-  localVideoRef: React.RefObject<HTMLVideoElement | null>;
-  localStream: MediaStream | null;
-  participants: Participant[];
-  currentUser: any;
-  mediaDevices: { video: boolean; audio: boolean };
-}
-
-const VideoGrid: React.FC<VideoGridProps> = ({
-  localVideoRef,
-  localStream,
-  participants,
-  currentUser,
-  mediaDevices,
-}) => {
-  const totalParticipants = participants.length + 1; // +1 for local user
-
-  // Calculate grid layout
-  const getGridLayout = (count: number) => {
-    if (count === 1) return 'grid-cols-1';
-    if (count === 2) return 'grid-cols-2';
-    if (count <= 4) return 'grid-cols-2';
-    if (count <= 6) return 'grid-cols-3';
-    return 'grid-cols-4';
-  };
-
-  return (
-    <div className={clsx(
-      'grid gap-4 h-full',
-      getGridLayout(totalParticipants)
-    )}>
-      {/* Local user video */}
-      <div className="relative bg-gray-800 rounded-lg overflow-hidden">
-        <video
-          ref={localVideoRef}
-          autoPlay
-          muted
-          playsInline
-          className={clsx(
-            'w-full h-full object-cover',
-            !mediaDevices.video && 'hidden'
-          )}
-        />
-        
-        {/* User info overlay */}
-        <div className="absolute bottom-2 left-2 bg-black bg-opacity-50 text-white px-2 py-1 rounded text-sm">
-          {currentUser?.name} (You)
-        </div>
-
-        {/* Muted indicator */}
-        {!mediaDevices.audio && (
-          <div className="absolute top-2 right-2 bg-red-600 rounded-full p-1">
-            <MicrophoneOffIcon className="h-4 w-4 text-white" />
-          </div>
-        )}
-
-        {/* Video off placeholder */}
-        {!mediaDevices.video && (
-          <div className="absolute inset-0 flex items-center justify-center bg-gray-700">
-            <div className="text-center">
-              <div className="w-16 h-16 bg-gray-600 rounded-full flex items-center justify-center mx-auto mb-2">
-                <span className="text-xl font-semibold text-white">
-                  {currentUser?.name?.charAt(0).toUpperCase()}
-                </span>
-              </div>
-              <p className="text-white text-sm">{currentUser?.name}</p>
-            </div>
-          </div>
-        )}
-      </div>
-
-      {/* Remote participants */}
-      {participants.map((participant) => (
-        <ParticipantVideo 
-          key={participant.userId} 
-          participant={participant}
-        />
-      ))}
-    </div>
-  );
-};
-
-// Individual participant video component
-interface ParticipantVideoProps {
-  participant: Participant;
-}
-
-const ParticipantVideo: React.FC<ParticipantVideoProps> = ({ participant }) => {
-  const videoRef = React.useRef<HTMLVideoElement>(null);
-
-  // Set video stream when participant stream changes
-  React.useEffect(() => {
-    if (videoRef.current && participant.stream) {
-      videoRef.current.srcObject = participant.stream;
-    }
-  }, [participant.stream]);
-
-  return (
-    <div className="relative bg-gray-800 rounded-lg overflow-hidden">
-      <video
-        ref={videoRef}
-        autoPlay
-        playsInline
-        className={clsx(
-          'w-full h-full object-cover',
-          !participant.videoEnabled && 'hidden'
-        )}
-      />
-      
-      {/* User info overlay */}
-      <div className="absolute bottom-2 left-2 bg-black bg-opacity-50 text-white px-2 py-1 rounded text-sm">
-        {participant.name}
-      </div>
-
-      {/* Muted indicator */}
-      {!participant.audioEnabled && (
-        <div className="absolute top-2 right-2 bg-red-600 rounded-full p-1">
-          <MicrophoneOffIcon className="h-4 w-4 text-white" />
-        </div>
-      )}
-
-      {/* Video off placeholder */}
-      {!participant.videoEnabled && (
-        <div className="absolute inset-0 flex items-center justify-center bg-gray-700">
-          <div className="text-center">
-            <div className="w-16 h-16 bg-gray-600 rounded-full flex items-center justify-center mx-auto mb-2">
-              <span className="text-xl font-semibold text-white">
-                {participant.name?.charAt(0).toUpperCase()}
-              </span>
-            </div>
-            <p className="text-white text-sm">{participant.name}</p>
-          </div>
-        </div>
-      )}
-    </div>
-  );
-};
 
 export default VideoSession;

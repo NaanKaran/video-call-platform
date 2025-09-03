@@ -27,7 +27,7 @@ export class App {
     this.app = express();
     this.server = createServer(this.app);
     this.env = NODE_ENV || 'development';
-    this.port = PORT || 5000;
+    this.port = PORT || 3000;
 
     this.connectToDatabase();
     this.initializeMiddlewares();
@@ -52,7 +52,14 @@ export class App {
   }
 
   private async connectToDatabase() {
-    await dbConnection();
+    console.log("⏳ Connecting to database...");
+    try {
+      await dbConnection();
+      console.log("✅ Database connected");
+    } catch (err) {
+      console.error("❌ Database connection failed:", err);
+      process.exit(1); // fail fast
+    }
   }
 
   private initializeMiddlewares() {
@@ -67,6 +74,17 @@ export class App {
   }
 
   private initializeRoutes(routes: Routes[]) {
+      this.app.get('/', (req, res) => {
+    res.send('✅ App is running on Azure');
+  });
+
+  this.app.get('/health', (req, res) => {
+    res.send('OK');
+  });
+
+    this.app.get('/api', (req, res) => {
+      res.send('API is working');
+    });
     routes.forEach(route => {
       this.app.use('/api', route.router);
     });

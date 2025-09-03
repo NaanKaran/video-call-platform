@@ -11,9 +11,11 @@
   },
   "dependencies": {
     "@heroicons/react": "^2.2.0",
+    "@livekit/components-react": "^2.9.14",
     "@tailwindcss/vite": "^4.1.12",
     "axios": "^1.11.0",
     "clsx": "^2.1.1",
+    "livekit-client": "^2.15.6",
     "react": "^19.1.1",
     "react-dom": "^19.1.1",
     "react-router-dom": "^7.8.2",
