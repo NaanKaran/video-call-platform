@@ -119,6 +119,53 @@ The backend uses `envalid` for type-safe environment variable validation.
 
 Backend uses MongoDB with Mongoose ODM. Database connection is handled in `src/database/index.ts` with automatic connection on app startup.
 
+## Video Recording with LiveKit Egress
+
+The platform uses LiveKit Egress for server-side video recording, which provides reliable, high-quality recordings of video sessions.
+
+### How It Works
+
+1. **Server-side Recording**: Uses LiveKit's Egress service instead of client-side recording
+2. **Room Composite**: Records all participants in a single composite video file
+3. **Cloud Storage**: Supports AWS S3, Google Cloud Storage, and Azure Blob Storage
+4. **High Quality**: Records in H264 720p at 30fps by default
+
+### Environment Variables
+
+Configure these environment variables for Azure Blob Storage (already configured in your project):
+
+```bash
+# Azure Blob Storage Configuration
+AZURE_STORAGE_CONNECTION_STRING=your-azure-connection-string
+AZURE_STORAGE_CONTAINER_NAME=session-recordings
+```
+
+### API Endpoints
+
+- `POST /livekit/recording/:sessionId/start` - Start recording
+- `POST /livekit/recording/stop` - Stop recording  
+- `GET /livekit/recording/:egressId/status` - Get recording status
+
+### Usage
+
+Only educators can start/stop recordings. The recording automatically captures:
+- All video streams from participants
+- All audio streams mixed together
+- Screen sharing content
+- Composite layout based on participant count
+
+### Storage Options
+
+1. **Azure Blob Storage** (configured): Your project is set up to use Azure Blob Storage
+2. **Local Storage** (fallback): Files saved to server disk if Azure is not configured
+
+### File Format
+
+Recordings are saved as MP4 files with:
+- Video: H264 codec, 720p resolution, 30fps
+- Audio: AAC codec with mixed audio from all participants
+- Filename format: `session-{sessionId}-{timestamp}.mp4`
+
 ## Development Workflow
 
 1. Backend server runs on default port (check NODE_ENV and PORT in config)

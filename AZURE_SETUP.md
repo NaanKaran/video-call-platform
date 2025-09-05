@@ -1,6 +1,15 @@
-# Azure Blob Storage Setup for Video Recording
+# Azure Blob Storage Setup for LiveKit Video Recording
 
-This document explains how to configure Azure Blob Storage for storing session recordings.
+This document explains how to configure Azure Blob Storage for storing LiveKit session recordings.
+
+## Overview
+
+The recording system captures all LiveKit participant video and audio streams, composites them into a single HD video (1920x1080), and stores the recording in Azure Blob Storage. This approach provides:
+
+- **Multi-participant recording**: Captures all participants in a composite video
+- **Intelligent layouts**: Automatically adjusts layout based on participant count
+- **High quality**: HD recording at 2.5 Mbps bitrate with 30 FPS
+- **Audio mixing**: Combines all participant audio streams
 
 ## Prerequisites
 

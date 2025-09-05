@@ -27,6 +27,7 @@ import { ChatPanel } from '../chat/ChatPanel';
 import type { Session } from '../../types';
 import sessionService from '../../services/sessionService';
 import chatService from '../../services/chatService';
+import livekitService from '../../services/livekitService';
 import api from '../../config/api';
 import { clsx } from 'clsx';
 
@@ -44,7 +45,7 @@ const VideoSession: React.FC = () => {
   
   // Recording state
   const [isRecording, setIsRecording] = useState(false);
-  const [mediaRecorder, setMediaRecorder] = useState<MediaRecorder | null>(null);
+  const [egressId, setEgressId] = useState<string | null>(null);
   const [recordingStartTime, setRecordingStartTime] = useState<Date | null>(null);
 
   // LiveKit hook
@@ -125,7 +126,7 @@ const VideoSession: React.FC = () => {
 
     try {
       // Stop recording if active
-      if (isRecording) {
+      if (isRecording && egressId) {
         await handleStopRecording();
       }
       
@@ -136,79 +137,55 @@ const VideoSession: React.FC = () => {
     }
   };
 
-  // Start recording
+
+  // Start recording using LiveKit Egress
   const handleStartRecording = async () => {
     try {
-      // Get display media for screen recording
-      const stream = await navigator.mediaDevices.getDisplayMedia({
-        video: true,
-        audio: true
-      });
+      if (!sessionId || connectionState !== ConnectionState.Connected) {
+        setError('Cannot start recording. Please ensure you are connected to the session.');
+        return;
+      }
 
-      const recorder = new MediaRecorder(stream, {
-        mimeType: 'video/webm;codecs=vp9'
-      });
-
-      const chunks: Blob[] = [];
-
-      recorder.ondataavailable = (event) => {
-        if (event.data.size > 0) {
-          chunks.push(event.data);
-        }
-      };
-
-      recorder.onstop = async () => {
-        const recordedBlob = new Blob(chunks, { type: 'video/webm' });
-        
-        // Upload to server
-        await uploadRecording(recordedBlob);
-        
-        // Stop all tracks
-        stream.getTracks().forEach(track => track.stop());
-      };
-
-      recorder.start(1000); // Record in 1-second chunks
-      setMediaRecorder(recorder);
+      console.log('Starting server-side recording with LiveKit Egress...');
+      
+      const filename = `session-${sessionId}-${Date.now()}.mp4`;
+      const result = await livekitService.startRecording(sessionId, filename);
+      
+      setEgressId(result.egressId);
       setIsRecording(true);
       setRecordingStartTime(new Date());
       
+      console.log('LiveKit Egress recording started successfully:', result);
+      
     } catch (error) {
       console.error('Failed to start recording:', error);
-      setError('Failed to start recording. Please check screen sharing permissions.');
+      setError('Failed to start recording: ' + (error instanceof Error ? error.message : 'Unknown error'));
     }
   };
 
-  // Stop recording
+  // Stop recording using LiveKit Egress
   const handleStopRecording = async () => {
-    if (mediaRecorder && mediaRecorder.state === 'recording') {
-      mediaRecorder.stop();
-      setIsRecording(false);
-      setRecordingStartTime(null);
-    }
-  };
-
-  // Upload recording to server
-  const uploadRecording = async (recordingBlob: Blob) => {
     try {
-      const formData = new FormData();
-      formData.append('recording', recordingBlob, `session-${sessionId}-${Date.now()}.webm`);
-      formData.append('sessionId', sessionId!);
-      formData.append('duration', recordingStartTime ? 
-        Math.floor((Date.now() - recordingStartTime.getTime()) / 1000).toString() : '0'
-      );
+      if (!egressId) {
+        console.warn('No egress ID available to stop recording');
+        return;
+      }
 
-      const response = await api.post('/sessions/upload-recording', formData, {
-        headers: {
-          'Content-Type': 'multipart/form-data',
-        },
-      });
-
-      console.log('Recording uploaded successfully:', response.data);
-    } catch (error: any) {
-      console.error('Failed to upload recording:', error);
-      setError(error.response?.data?.message || 'Failed to save recording. Please try again.');
+      console.log('Stopping server-side recording...');
+      await livekitService.stopRecording(egressId);
+      
+      setIsRecording(false);
+      setEgressId(null);
+      setRecordingStartTime(null);
+      
+      console.log('LiveKit Egress recording stopped successfully');
+      
+    } catch (error) {
+      console.error('Failed to stop recording:', error);
+      setError('Failed to stop recording: ' + (error instanceof Error ? error.message : 'Unknown error'));
     }
   };
+
 
   if (loading) {
     return (

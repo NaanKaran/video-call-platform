@@ -15,5 +15,10 @@ export class LiveKitRoute implements Routes {
   private initializeRoutes() {
     this.router.get(`${this.path}/token/:sessionId`, AuthMiddleware, this.livekit.generateToken);
     this.router.delete(`${this.path}/room/:sessionId`, AuthMiddleware, this.livekit.deleteRoom);
+    
+    // Recording endpoints
+    this.router.post(`${this.path}/recording/:sessionId/start`, AuthMiddleware, this.livekit.startRecording);
+    this.router.post(`${this.path}/recording/stop`, AuthMiddleware, this.livekit.stopRecording);
+    this.router.get(`${this.path}/recording/:egressId/status`, AuthMiddleware, this.livekit.getRecordingStatus);
   }
 }
