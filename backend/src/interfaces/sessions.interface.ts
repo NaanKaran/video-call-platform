@@ -1,3 +1,11 @@
+export interface SessionRecording {
+  fileName: string;
+  url: string;
+  duration: number;
+  size: number;
+  uploadedAt: Date;
+}
+
 export interface Session {
   _id?: string;
   name: string;
@@ -7,6 +15,7 @@ export interface Session {
   participants: string[];
   session_code: string;
   duration: number;
+  recordings?: SessionRecording[];
   createdAt?: Date;
   updatedAt?: Date;
 }

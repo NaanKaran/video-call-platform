@@ -2,10 +2,13 @@ import { NextFunction, Request, Response } from 'express';
 import { Container } from 'typedi';
 import { Session } from '@interfaces/sessions.interface';
 import { SessionService } from '@services/sessions.service';
+import { AzureStorageService } from '@services/azure-storage.service';
 import { CreateSessionDto, JoinSessionDto } from '@dtos/sessions.dto';
+import multer from 'multer';
 
 export class SessionsController {
   public session = Container.get(SessionService);
+  public azureStorage = Container.get(AzureStorageService);
 
   public getSessions = async (req: Request, response: Response, next: NextFunction): Promise<void> => {
     try {
@@ -106,6 +109,105 @@ export class SessionsController {
       const deleteSessionData: Session = await this.session.deleteSession(sessionId, userId);
 
       response.status(200).json({ data: deleteSessionData, message: 'deleted' });
+    } catch (error) {
+      next(error);
+    }
+  };
+
+  public uploadRecording = async (req: Request, response: Response, next: NextFunction): Promise<void> => {
+    try {
+      const { sessionId, duration } = req.body;
+      const { userId, role } = req.user;
+
+      // Only educators can upload recordings
+      if (role !== 'educator') {
+        response.status(403).json({ message: 'Only educators can upload recordings' });
+        return;
+      }
+
+      // Check if session exists and user is the educator
+      const session = await this.session.findSessionById(sessionId);
+      if (session.educator_id["_id"]?.toString() !== userId) {
+        response.status(403).json({ message: 'Not authorized to upload recording for this session' });
+        return;
+      }
+
+      // Check if file was uploaded
+      if (!req.file) {
+        response.status(400).json({ message: 'No recording file provided' });
+        return;
+      }
+
+      // Generate unique filename
+      const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
+      const fileName = `session-${sessionId}-${timestamp}.webm`;
+
+      // Upload to Azure Blob Storage
+      await this.azureStorage.uploadRecording(
+        req.file.buffer,
+        fileName,
+        req.file.mimetype
+      );
+
+      // Generate signed URL for accessing the recording
+      const signedUrl = await this.azureStorage.getRecordingUrl(fileName);
+
+      // Save recording metadata to session
+      const recordingData = {
+        fileName,
+        url: signedUrl,
+        duration: parseInt(duration) || 0,
+        uploadedAt: new Date(),
+        size: req.file.size
+      };
+
+      const updatedSession = await this.session.addRecording(sessionId, recordingData);
+
+      response.status(200).json({ 
+        data: { 
+          session: updatedSession, 
+          recording: recordingData 
+        }, 
+        message: 'Recording uploaded successfully' 
+      });
+    } catch (error) {
+      next(error);
+    }
+  };
+
+  public getSessionRecordings = async (req: Request, response: Response, next: NextFunction): Promise<void> => {
+    try {
+      const sessionId: string = req.params.id;
+      const { userId } = req.user;
+
+      // Check if user has access to this session
+      const session = await this.session.findSessionById(sessionId);
+      const isEducator = session.educator_id["_id"]?.toString() === userId;
+      const isParticipant = session.participants.some((p: any) => p._id?.toString() === userId);
+
+      if (!isEducator && !isParticipant) {
+        response.status(403).json({ message: 'Not authorized to view recordings for this session' });
+        return;
+      }
+
+      // Refresh signed URLs for all recordings (since they expire after 24 hours)
+      const recordings = session.recordings || [];
+      const refreshedRecordings = await Promise.all(
+        recordings.map(async (recording: any) => {
+          try {
+            const freshUrl = await this.azureStorage.getRecordingUrl(recording.fileName);
+            return {
+              ...recording,
+              url: freshUrl
+            };
+          } catch (error) {
+            console.error(`Failed to refresh URL for ${recording.fileName}:`, error);
+            return recording; // Return original if refresh fails
+          }
+        })
+      );
+
+      response.status(200).json({ data: refreshedRecordings, message: 'recordings' });
     } catch (error) {
       next(error);
     }

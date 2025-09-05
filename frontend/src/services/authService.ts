@@ -1,5 +1,5 @@
 import api from '../config/api';
-import { LoginCredentials, SignupData, AuthResponse, User } from '../types';
+import type { LoginCredentials, SignupData, AuthResponse, User } from '../types';
 
 class AuthService {
   // Login user

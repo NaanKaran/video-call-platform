@@ -17,7 +17,7 @@ import VideoSession from './components/Session/VideoSession';
 // Landing page component
 const LandingPage: React.FC = () => {
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="h-full bg-gray-50 overflow-auto">
       {/* Hero section */}
       <div className="relative bg-white overflow-hidden">
         <div className="max-w-7xl mx-auto">
@@ -214,7 +214,7 @@ const App: React.FC = () => {
                 <Route 
                   path="*" 
                   element={
-                    <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+                    <div className="h-full bg-gray-50 flex items-center justify-center">
                       <div className="text-center">
                         <h1 className="text-4xl font-bold text-gray-900 mb-4">404</h1>
                         <p className="text-gray-600 mb-6">Page not found</p>

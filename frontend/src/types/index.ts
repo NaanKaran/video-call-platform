@@ -47,6 +47,7 @@ export interface CreateSessionData {
   name: string;
   scheduled_time: string;
   duration?: number;
+  participant_emails?: string[];
 }
 
 export interface JoinSessionData {

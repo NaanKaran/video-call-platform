@@ -1,9 +1,16 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { CalendarIcon, ClockIcon, ArrowLeftIcon } from '@heroicons/react/24/outline';
+import { 
+  CalendarIcon, 
+  ClockIcon, 
+  ArrowLeftIcon, 
+  UserPlusIcon, 
+  XMarkIcon,
+  EnvelopeIcon 
+} from '@heroicons/react/24/outline';
 import { useAuth } from '../../hooks/useAuth';
 import sessionService from '../../services/sessionService';
-import { CreateSessionData } from '../../types';
+import type { CreateSessionData } from '../../types';
 
 // Create session form component (educators only)
 const CreateSession: React.FC = () => {
@@ -18,6 +25,11 @@ const CreateSession: React.FC = () => {
     scheduled_time: '',
     duration: 60,
   });
+
+  // Participant invitation state
+  const [participants, setParticipants] = useState<string[]>([]);
+  const [newParticipantEmail, setNewParticipantEmail] = useState('');
+  const [emailError, setEmailError] = useState('');
 
   // Redirect if not an educator
   React.useEffect(() => {
@@ -34,6 +46,48 @@ const CreateSession: React.FC = () => {
     }));
   };
 
+  // Email validation function
+  const isValidEmail = (email: string): boolean => {
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    return emailRegex.test(email);
+  };
+
+  // Add participant email
+  const handleAddParticipant = () => {
+    setEmailError('');
+    
+    if (!newParticipantEmail.trim()) {
+      setEmailError('Please enter an email address');
+      return;
+    }
+
+    if (!isValidEmail(newParticipantEmail)) {
+      setEmailError('Please enter a valid email address');
+      return;
+    }
+
+    if (participants.includes(newParticipantEmail.toLowerCase())) {
+      setEmailError('This participant has already been added');
+      return;
+    }
+
+    setParticipants(prev => [...prev, newParticipantEmail.toLowerCase()]);
+    setNewParticipantEmail('');
+  };
+
+  // Remove participant
+  const handleRemoveParticipant = (email: string) => {
+    setParticipants(prev => prev.filter(p => p !== email));
+  };
+
+  // Handle enter key in participant email input
+  const handleParticipantKeyPress = (e: React.KeyboardEvent) => {
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      handleAddParticipant();
+    }
+  };
+
   const validateForm = (): string | null => {
     if (!formData.name.trim()) return 'Session name is required';
     if (formData.name.trim().length < 3) return 'Session name must be at least 3 characters';
@@ -44,8 +98,8 @@ const CreateSession: React.FC = () => {
     const now = new Date();
     if (scheduledDate <= now) return 'Scheduled time must be in the future';
     
-    if (formData.duration < 15) return 'Duration must be at least 15 minutes';
-    if (formData.duration > 240) return 'Duration cannot exceed 240 minutes';
+    if (formData.duration && formData.duration < 15) return 'Duration must be at least 15 minutes';
+    if (formData.duration && formData.duration > 240) return 'Duration cannot exceed 240 minutes';
     
     return null;
   };
@@ -67,6 +121,7 @@ const CreateSession: React.FC = () => {
       const session = await sessionService.createSession({
         ...formData,
         name: formData.name.trim(),
+        participant_emails: participants,
       });
 
       // Redirect to dashboard with success message
@@ -90,7 +145,7 @@ const CreateSession: React.FC = () => {
   };
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="h-full bg-gray-50 overflow-auto">
       <div className="max-w-2xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         {/* Header */}
         <div className="mb-8">
@@ -182,6 +237,76 @@ const CreateSession: React.FC = () => {
               </p>
             </div>
 
+            {/* Participant invitations */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-3">
+                <UserPlusIcon className="inline h-4 w-4 mr-1" />
+                Invite Participants (Optional)
+              </label>
+              
+              {/* Add participant input */}
+              <div className="flex space-x-2 mb-3">
+                <div className="flex-1">
+                  <input
+                    type="email"
+                    value={newParticipantEmail}
+                    onChange={(e) => {
+                      setNewParticipantEmail(e.target.value);
+                      setEmailError('');
+                    }}
+                    onKeyPress={handleParticipantKeyPress}
+                    placeholder="Enter participant email address"
+                    className="block w-full px-3 py-2 border border-gray-300 rounded-lg shadow-sm placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  />
+                  {emailError && (
+                    <p className="mt-1 text-sm text-red-600">{emailError}</p>
+                  )}
+                </div>
+                <button
+                  type="button"
+                  onClick={handleAddParticipant}
+                  className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-colors flex items-center"
+                >
+                  <UserPlusIcon className="h-4 w-4 mr-1" />
+                  Add
+                </button>
+              </div>
+
+              {/* Participants list */}
+              {participants.length > 0 && (
+                <div className="border border-gray-200 rounded-lg p-3 bg-gray-50">
+                  <h4 className="text-sm font-medium text-gray-700 mb-2">
+                    Invited Participants ({participants.length})
+                  </h4>
+                  <div className="space-y-2">
+                    {participants.map((email, index) => (
+                      <div
+                        key={index}
+                        className="flex items-center justify-between bg-white px-3 py-2 rounded border border-gray-200"
+                      >
+                        <div className="flex items-center space-x-2">
+                          <EnvelopeIcon className="h-4 w-4 text-gray-400" />
+                          <span className="text-sm text-gray-700">{email}</span>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => handleRemoveParticipant(email)}
+                          className="text-red-600 hover:text-red-800 p-1 rounded transition-colors"
+                          title="Remove participant"
+                        >
+                          <XMarkIcon className="h-4 w-4" />
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              <p className="mt-2 text-sm text-gray-500">
+                Add participant email addresses to send them automatic invitations with the session details and join link.
+              </p>
+            </div>
+
             {/* Session preview */}
             <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
               <h3 className="text-sm font-medium text-blue-800 mb-2">Session Preview</h3>
@@ -194,6 +319,9 @@ const CreateSession: React.FC = () => {
                 }</p>
                 <p><strong>Duration:</strong> {formData.duration} minutes</p>
                 <p><strong>Educator:</strong> {user?.name}</p>
+                {participants.length > 0 && (
+                  <p><strong>Invited Participants:</strong> {participants.length} people will receive invitations</p>
+                )}
               </div>
             </div>
 

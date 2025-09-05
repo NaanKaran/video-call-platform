@@ -1,4 +1,4 @@
-import { IsString, IsNotEmpty, IsDateString, IsOptional, IsNumber, Min, Max, MinLength, MaxLength } from 'class-validator';
+import { IsString, IsNotEmpty, IsDateString, IsOptional, IsNumber, Min, Max, MinLength, MaxLength, IsArray, IsEmail } from 'class-validator';
 
 export class CreateSessionDto {
   @IsString()
@@ -15,6 +15,11 @@ export class CreateSessionDto {
   @Min(15)
   @Max(240)
   public duration?: number;
+
+  @IsOptional()
+  @IsArray()
+  @IsEmail({}, { each: true })
+  public participant_emails?: string[];
 }
 
 export class JoinSessionDto {

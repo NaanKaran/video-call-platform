@@ -1,40 +1,26 @@
-# NodeJS Version 22 (Alpine for fewer vulnerabilities)
-FROM node:22-alpine AS base
+FROM node:lts-alpine3.20
 
-
-
-# Step 1: Build Stage
-FROM base AS builder
-
+# Set environment
+ENV NODE_ENV=production
 WORKDIR /app
 
-ENV NODE_ENV=production
-# copy package.json + lockfile first (better layer caching)
-COPY package.json swagger.yaml ./
-RUN npm install -g @swc/cli @swc/core
-RUN npm install --legacy-peer-deps
 
+# Copy only the dependency manifests first (for caching)
+COPY package.json package-lock.json tsconfig.json ./
+RUN npm install -g @swc/cli @swc/core
+
+# Install ALL deps (including dev, because build needs them)
+RUN npm ci
+
+# Copy source code
 COPY src ./src
 COPY .swcrc tsconfig.json .env ./
 
-
-# Build with SWC
+# Build the app
 RUN npm run build
 
-# Step 2: Final Stage (Runtime Stage)
-FROM base AS runner
 
-WORKDIR /app
 
-# Copy only the necessary artifacts from the build stage
-COPY --from=builder /app/dist/src ./dist
-COPY --from=builder /app/node_modules ./node_modules
-COPY --from=builder /app/package.json /app/tsconfig.json /app/.env ./
-COPY --from=builder /app/swagger.yaml ./dist
-
-# Expose the application port
 EXPOSE 3000
 
-# Command to run the application
-CMD [ "npm", "run", "start" ]
-
+CMD ["node", "dist/src/server.js"]

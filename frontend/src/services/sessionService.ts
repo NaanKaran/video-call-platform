@@ -1,5 +1,5 @@
 import api from '../config/api';
-import { Session, CreateSessionData, JoinSessionData, ApiResponse } from '../types';
+import type { Session, CreateSessionData, JoinSessionData, ApiResponse } from '../types';
 
 class SessionService {
   // Get all sessions (filtered by user role)

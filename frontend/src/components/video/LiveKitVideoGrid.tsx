@@ -2,9 +2,10 @@ import React, { useRef, useEffect, useState } from 'react';
 import {
   Participant,
   LocalParticipant,
+  Track,
 } from 'livekit-client';
 import { MicrophoneIcon as MicrophoneOffIcon, VideoCameraSlashIcon } from '@heroicons/react/24/solid';
-import { UserGroupIcon } from '@heroicons/react/24/outline';
+import { UserGroupIcon, ComputerDesktopIcon } from '@heroicons/react/24/outline';
 import { clsx } from 'clsx';
 import userService from '../../services/userService';
 import type { User } from '../../types';
@@ -20,17 +21,29 @@ const CustomParticipantTile: React.FC<{ participant: Participant; userMap?: Map<
   const videoRef = useRef<HTMLVideoElement>(null);
   const audioRef = useRef<HTMLAudioElement>(null);
 
-  // Get tracks more reliably with null checks
+  // Get tracks more reliably with null checks and proper subscription filtering
   const audioTrack = participant.audioTrackPublications 
-    ? Array.from(participant.audioTrackPublications.values())[0] 
+    ? Array.from(participant.audioTrackPublications.values()).find(pub => pub.isSubscribed)
     : undefined;
-  const videoTrack = participant.videoTrackPublications 
-    ? Array.from(participant.videoTrackPublications.values())[0] 
+    
+  // Separate camera and screen share tracks
+  const cameraTrack = participant.videoTrackPublications 
+    ? Array.from(participant.videoTrackPublications.values()).find((pub: any) => 
+        pub.isSubscribed && pub.source === Track.Source.Camera)
     : undefined;
+    
+  const screenShareTrack = participant.videoTrackPublications 
+    ? Array.from(participant.videoTrackPublications.values()).find((pub: any) => 
+        pub.isSubscribed && pub.source === Track.Source.ScreenShare)
+    : undefined;
+    
+  // Use screen share track if available, otherwise use camera
+  const videoTrack = screenShareTrack || cameraTrack;
   
   const isLocal = participant instanceof LocalParticipant;
   const isMuted = !audioTrack?.isEnabled;
   const isVideoOff = !videoTrack?.isEnabled;
+  const isPresenting = !!screenShareTrack;
 
   // Get user name from backend data, fallback to participant name or identity
   const getUserDisplayName = (): string => {
@@ -46,23 +59,29 @@ const CustomParticipantTile: React.FC<{ participant: Participant; userMap?: Map<
 
   const displayName = getUserDisplayName();
 
-  // Debug logging
+  // Debug logging with subscription status
   useEffect(() => {
     console.log('Participant:', participant.identity, {
       isLocal,
+      isPresenting,
+      cameraTrack: cameraTrack?.track,
+      screenShareTrack: screenShareTrack?.track,
       videoTrack: videoTrack?.track,
       videoEnabled: videoTrack?.isEnabled,
+      videoSubscribed: videoTrack?.isSubscribed,
+      videoSource: videoTrack?.source,
       audioTrack: audioTrack?.track,
       audioEnabled: audioTrack?.isEnabled,
+      audioSubscribed: audioTrack?.isSubscribed,
     });
-  }, [participant.identity, isLocal, videoTrack, audioTrack]);
+  }, [participant.identity, isLocal, videoTrack, audioTrack, cameraTrack, screenShareTrack, isPresenting]);
 
   // Handle video track
   useEffect(() => {
     const video = videoRef.current;
     const track = videoTrack?.track;
 
-    if (video && track) {
+    if (video && track && videoTrack?.isSubscribed) {
       console.log('Attaching video track for', participant.identity);
       track.attach(video);
       
@@ -71,14 +90,14 @@ const CustomParticipantTile: React.FC<{ participant: Participant; userMap?: Map<
         track.detach(video);
       };
     }
-  }, [videoTrack, participant.identity]);
+  }, [videoTrack?.track, videoTrack?.isSubscribed, participant.identity]);
 
   // Handle audio track (only for remote participants)
   useEffect(() => {
     const audio = audioRef.current;
     const track = audioTrack?.track;
 
-    if (audio && track && !isLocal) {
+    if (audio && track && !isLocal && audioTrack?.isSubscribed) {
       console.log('Attaching audio track for', participant.identity);
       track.attach(audio);
       
@@ -87,10 +106,15 @@ const CustomParticipantTile: React.FC<{ participant: Participant; userMap?: Map<
         track.detach(audio);
       };
     }
-  }, [audioTrack, isLocal, participant.identity]);
+  }, [audioTrack?.track, audioTrack?.isSubscribed, isLocal, participant.identity]);
 
   return (
-    <div className="relative bg-[#1e1e1e] rounded-lg overflow-hidden aspect-video border border-[#3a3a3a]">
+    <div className={clsx(
+      "relative bg-[#1e1e1e] rounded-lg overflow-hidden aspect-video border",
+      isPresenting 
+        ? "border-[#6264a7] border-2" 
+        : "border-[#3a3a3a]"
+    )}>
       {/* Video element */}
       <video
         ref={videoRef}
@@ -131,9 +155,14 @@ const CustomParticipantTile: React.FC<{ participant: Participant; userMap?: Map<
       )}
 
       {/* Teams-style name badge */}
-      <div className="absolute bottom-2 left-2 bg-[#1e1e1e] bg-opacity-75 text-white px-2 py-1 rounded-full text-xs font-medium">
-        {displayName}
-        {isLocal && <span className="text-gray-300"> (You)</span>}
+      <div className="absolute bottom-2 left-2 bg-[#1e1e1e] bg-opacity-75 text-white px-2 py-1 rounded-full text-xs font-medium flex items-center space-x-1">
+        <span>
+          {displayName}
+          {isLocal && <span className="text-gray-300"> (You)</span>}
+        </span>
+        {isPresenting && (
+          <ComputerDesktopIcon className="h-3 w-3 text-[#6264a7]" />
+        )}
       </div>
 
       {/* Teams-style status indicators */}
@@ -194,6 +223,16 @@ export const LiveKitVideoGrid: React.FC<LiveKitVideoGridProps> = ({
   
   const allParticipants = Array.from(uniqueParticipants.values());
   const totalParticipants = allParticipants.length;
+  
+  // Find presenting participant (MS Teams style)
+  const presentingParticipant = allParticipants.find(p => {
+    const screenShareTrack = Array.from(p.videoTrackPublications.values()).find((pub: any) => 
+      pub.isSubscribed && pub.source === Track.Source.ScreenShare);
+    return !!screenShareTrack;
+  });
+  
+  // Split participants: presenter vs others
+  const otherParticipants = allParticipants.filter(p => p !== presentingParticipant);
 
   // Calculate grid layout
   const getGridLayout = (count: number) => {
@@ -225,6 +264,37 @@ export const LiveKitVideoGrid: React.FC<LiveKitVideoGridProps> = ({
     );
   }
 
+  // MS Teams-style presenter layout
+  if (presentingParticipant) {
+    return (
+      <div className="h-full w-full flex gap-2 overflow-hidden">
+        {/* Main presenter area (left side - takes most space) */}
+        <div className="flex-1 min-w-0">
+          <CustomParticipantTile
+            key={presentingParticipant.identity}
+            participant={presentingParticipant}
+            userMap={userMap}
+          />
+        </div>
+        
+        {/* Sidebar for other participants (right side) */}
+        {otherParticipants.length > 0 && (
+          <div className="w-80 flex flex-col gap-2 overflow-y-auto">
+            {otherParticipants.map((participant) => (
+              <div key={participant.identity} className="flex-shrink-0 aspect-video">
+                <CustomParticipantTile
+                  participant={participant}
+                  userMap={userMap}
+                />
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+    );
+  }
+
+  // Regular gallery view when no one is presenting
   return (
     <div className={clsx(
       'grid gap-2 h-full w-full',

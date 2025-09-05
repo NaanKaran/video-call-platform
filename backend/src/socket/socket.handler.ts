@@ -27,10 +27,15 @@ export class SocketHandler {
   constructor(server: HttpServer) {
     this.io = new SocketIOServer(server, {
       cors: {
-        origin: process.env.FRONTEND_URL || 'http://localhost:3000',
+        origin: [
+          'https://mindbrigeui.z30.web.core.windows.net',
+          'http://localhost:3000',
+          'http://localhost:5173' // Vite dev server default
+        ],
         methods: ['GET', 'POST'],
         credentials: true,
       },
+      transports: ['websocket', 'polling'], // Support both transports
     });
 
     this.sessionService = Container.get(SessionService);

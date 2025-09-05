@@ -19,7 +19,7 @@ interface LiveKitTokenResponse {
   roomName: string;
 }
 
-export const useLiveKit = (sessionId: string, userId: string) => {
+export const useLiveKit = (sessionId: string, _userId: string) => {
   const [room] = useState(() => new Room());
   const [participants, setParticipants] = useState<Participant[]>([]);
   const [localParticipant, setLocalParticipant] = useState<LocalParticipant | null>(null);
@@ -55,7 +55,7 @@ export const useLiveKit = (sessionId: string, userId: string) => {
       setParticipants([]);
       setIsConnecting(false);
       
-      if (reason === DisconnectReason.UNKNOWN) {
+      if (reason) {
         setError('Connection lost');
       }
     };
@@ -69,11 +69,11 @@ export const useLiveKit = (sessionId: string, userId: string) => {
       setError(null);
     };
 
-    const handleParticipantConnected = (participant: RemoteParticipant) => {
+    const handleParticipantConnected = (_participant: RemoteParticipant) => {
       updateParticipants();
     };
 
-    const handleParticipantDisconnected = (participant: RemoteParticipant) => {
+    const handleParticipantDisconnected = (_participant: RemoteParticipant) => {
       updateParticipants();
     };
 
@@ -113,6 +113,22 @@ export const useLiveKit = (sessionId: string, userId: string) => {
       }
     };
 
+    // Critical: Handle track subscription events
+    const handleTrackSubscribed = (_track: Track, publication: TrackPublication, participant: Participant) => {
+      console.log(`Track subscribed: ${publication.kind} from ${participant.identity}`);
+      updateParticipants();
+    };
+
+    const handleTrackUnsubscribed = (_track: Track, publication: TrackPublication, participant: Participant) => {
+      console.log(`Track unsubscribed: ${publication.kind} from ${participant.identity}`);
+      updateParticipants();
+    };
+
+    // Handle track subscription failures
+    const handleTrackSubscriptionFailed = (_trackId: string, participant: Participant, error: any) => {
+      console.error(`Track subscription failed for ${participant.identity}:`, error);
+    };
+
     // Add event listeners
     room.on(RoomEvent.Connected, handleConnected);
     room.on(RoomEvent.Disconnected, handleDisconnected);
@@ -122,6 +138,9 @@ export const useLiveKit = (sessionId: string, userId: string) => {
     room.on(RoomEvent.ParticipantDisconnected, handleParticipantDisconnected);
     room.on(RoomEvent.TrackPublished, handleTrackPublished);
     room.on(RoomEvent.TrackUnpublished, handleTrackUnpublished);
+    room.on(RoomEvent.TrackSubscribed, handleTrackSubscribed);
+    room.on(RoomEvent.TrackUnsubscribed, handleTrackUnsubscribed);
+    room.on(RoomEvent.TrackSubscriptionFailed, handleTrackSubscriptionFailed);
     room.on(RoomEvent.TrackMuted, handleTrackMuted);
     room.on(RoomEvent.TrackUnmuted, handleTrackUnmuted);
 
@@ -135,6 +154,9 @@ export const useLiveKit = (sessionId: string, userId: string) => {
       room.off(RoomEvent.ParticipantDisconnected, handleParticipantDisconnected);
       room.off(RoomEvent.TrackPublished, handleTrackPublished);
       room.off(RoomEvent.TrackUnpublished, handleTrackUnpublished);
+      room.off(RoomEvent.TrackSubscribed, handleTrackSubscribed);
+      room.off(RoomEvent.TrackUnsubscribed, handleTrackUnsubscribed);
+      room.off(RoomEvent.TrackSubscriptionFailed, handleTrackSubscriptionFailed);
       room.off(RoomEvent.TrackMuted, handleTrackMuted);
       room.off(RoomEvent.TrackUnmuted, handleTrackUnmuted);
     };
@@ -211,7 +233,7 @@ export const useLiveKit = (sessionId: string, userId: string) => {
     }
   };
 
-  // Toggle screen share
+  // Toggle screen share with MS Teams-style functionality
   const toggleScreenShare = async (): Promise<void> => {
     try {
       if (!room.localParticipant) {
@@ -222,31 +244,48 @@ export const useLiveKit = (sessionId: string, userId: string) => {
       
       if (isScreenShareEnabled) {
         // Stop screen sharing
+        console.log('Stopping screen share...');
         await room.localParticipant.setScreenShareEnabled(false);
+        console.log('Screen sharing stopped');
       } else {
-        // Start screen sharing - check for permission first
+        // Start screen sharing with better options like MS Teams
         if (!navigator.mediaDevices || !navigator.mediaDevices.getDisplayMedia) {
           throw new Error('Screen sharing is not supported in this browser');
         }
         
-        await room.localParticipant.setScreenShareEnabled(true);
+        console.log('Starting screen share...');
+        
+        // MS Teams-style screen sharing with better constraints
+        const screenShareOptions = {
+          video: {
+            displaySurface: 'monitor' as const, // Prefer full screen/application over browser tab
+          },
+          audio: true
+        };
+        
+        await room.localParticipant.setScreenShareEnabled(true, screenShareOptions);
+        console.log('Screen sharing started');
       }
     } catch (error: any) {
       console.error('Error toggling screen share:', error);
       
-      // Set user-friendly error messages
+      // Set user-friendly error messages like MS Teams
       if (error.name === 'NotAllowedError') {
-        setError('Screen sharing permission denied. Please allow screen sharing and try again.');
+        setError('Screen sharing was cancelled or denied. Please try again and allow screen sharing.');
       } else if (error.name === 'NotSupportedError') {
-        setError('Screen sharing is not supported in this browser.');
-      } else if (error.message?.includes('Permission denied')) {
-        setError('Screen sharing permission denied. Please allow screen sharing and try again.');
+        setError('Screen sharing is not supported in this browser. Try using Chrome or Edge.');
+      } else if (error.name === 'InvalidStateError') {
+        setError('Unable to share screen. Please try again.');
+      } else if (error.message?.includes('Permission denied') || error.message?.includes('cancelled')) {
+        setError('Screen sharing was cancelled. Click "Share content" to try again.');
+      } else if (error.message?.includes('not connected')) {
+        setError('Not connected to the meeting. Please rejoin to share your screen.');
       } else {
-        setError('Failed to start screen sharing. Please try again.');
+        setError('Failed to share screen. Please check your connection and try again.');
       }
       
-      // Clear error after 5 seconds
-      setTimeout(() => setError(null), 5000);
+      // Clear error after 8 seconds (longer than before for better UX)
+      setTimeout(() => setError(null), 8000);
       throw error;
     }
   };

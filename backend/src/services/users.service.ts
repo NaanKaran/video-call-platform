@@ -1,17 +1,19 @@
 import { hash } from 'bcrypt';
 import { Service } from 'typedi';
-import { HttpException } from '@exceptions/httpException';
+import { HttpException } from '@exceptions/HttpException';
 import { User } from '@interfaces/users.interface';
-import { UserModel } from '@models/users.model';
+import { getUserModel } from '@models/users.model';
 
 @Service()
 export class UserService {
   public async findAllUser(): Promise<User[]> {
+    const UserModel = await getUserModel();
     const users: User[] = await UserModel.find();
     return users;
   }
 
   public async findUserById(userId: string): Promise<User> {
+    const UserModel = await getUserModel();
     const findUser: User = await UserModel.findOne({ _id: userId });
     if (!findUser) throw new HttpException(409, "User doesn't exist");
 
@@ -19,6 +21,7 @@ export class UserService {
   }
 
   public async createUser(userData: User): Promise<User> {
+    const UserModel = await getUserModel();
     const findUser: User = await UserModel.findOne({ email: userData.email });
     if (findUser) throw new HttpException(409, `This email ${userData.email} already exists`);
 
@@ -29,6 +32,7 @@ export class UserService {
   }
 
   public async updateUser(userId: string, userData: User): Promise<User> {
+    const UserModel = await getUserModel();
     if (userData.email) {
       const findUser: User = await UserModel.findOne({ email: userData.email });
       if (findUser && findUser._id != userId) throw new HttpException(409, `This email ${userData.email} already exists`);
@@ -46,6 +50,7 @@ export class UserService {
   }
 
   public async deleteUser(userId: string): Promise<User> {
+    const UserModel = await getUserModel();
     const deleteUserById: User = await UserModel.findByIdAndDelete(userId);
     if (!deleteUserById) throw new HttpException(409, "User doesn't exist");
 

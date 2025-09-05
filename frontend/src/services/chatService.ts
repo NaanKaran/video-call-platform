@@ -1,6 +1,7 @@
 import { io, Socket } from 'socket.io-client';
 import type { ChatMessage, SendChatMessageData } from '../types';
 import authService from './authService';
+import config from '../config/environment';
 
 class ChatService {
   private socket: Socket | null = null;
@@ -14,16 +15,18 @@ class ChatService {
       this.disconnect();
     }
 
-    this.socket = io('http://localhost:3000', {
+    this.socket = io(config.SOCKET_BASE_URL, {
       auth: {
         token: authService.getToken(),
       },
+      transports: ['websocket', 'polling'], // Ensure both transports are allowed
     });
 
     this.setupSocketListeners();
     
     // Join the chat room once connected
     this.socket.on('connect', () => {
+      console.log('Chat socket connected, joining chat room...', { sessionId, userId, userName });
       this.socket!.emit('join-chat', { sessionId, userId, userName });
     });
   }
@@ -89,6 +92,10 @@ class ChatService {
 
     this.socket.on('connect_error', (error) => {
       console.error('Chat socket connection error:', error);
+      // Check if it's an authentication error
+      if (error.message?.includes('Authentication')) {
+        console.error('Chat authentication failed. Token:', authService.getToken() ? 'Present' : 'Missing');
+      }
     });
 
     // Listen for session errors

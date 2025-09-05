@@ -29,7 +29,13 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({ sessionId, isOpen, onClose
     try {
       const history = await chatApiService.getChatHistory(sessionId, 50);
       console.log('Loaded chat history:', history);
-      setMessages(history);
+      
+      // Ensure all messages have IDs
+      const historyWithIds = history.map(msg => ({
+        ...msg,
+        id: msg.id || `api-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`
+      }));
+      setMessages(historyWithIds);
     } catch (error) {
       console.error('Failed to load chat history:', error);
     } finally {
@@ -40,34 +46,58 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({ sessionId, isOpen, onClose
   // Initialize chat service and load existing messages
   useEffect(() => {
     if (isOpen && user && !isInitialized) {
-      console.log('Initializing chat for session:', sessionId);
+      console.log('Initializing chat for session:', sessionId, 'user:', user);
       
       // Load chat history first
       loadChatHistory();
       
-      // Initialize socket connection
-      chatService.initializeSocket(sessionId, user._id, user.name);
-      setIsInitialized(true);
+      // Add a small delay to ensure video session is established first
+      setTimeout(() => {
+        // Initialize socket connection
+        console.log('Starting chat socket initialization...');
+        chatService.initializeSocket(sessionId, user._id, user.name);
+        setIsInitialized(true);
+      }, 1000);
+    }
+  }, [isOpen, sessionId, user, isInitialized]);
 
+  // Set up message subscriptions separately
+  useEffect(() => {
+    if (isInitialized && isOpen) {
       // Subscribe to new messages
       const unsubscribe = chatService.onMessage((message: ChatMessage) => {
         console.log('Received new message:', message);
+        
+        // Ensure message has an ID
+        const messageWithId = {
+          ...message,
+          id: message.id || `msg-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`
+        };
+        
         setMessages(prev => {
           // Replace optimistic message with real message, or add new message
-          const existingIndex = prev.findIndex(msg => 
-            msg.id === message.id || // Same ID (real message)
-            (msg.id.startsWith('temp-') && msg.message === message.message && msg.userId === message.userId) // Optimistic message to replace
-          );
+          const existingIndex = prev.findIndex(msg => {
+            // Safely check for message ID and properties
+            const msgId = msg.id;
+            const messageId = messageWithId.id;
+            
+            return (
+              (msgId && messageId && msgId === messageId) || // Same ID (real message)
+              (msgId && msgId.startsWith('temp-') && 
+               msg.message === messageWithId.message && 
+               msg.userId === messageWithId.userId) // Optimistic message to replace
+            );
+          });
           
           if (existingIndex !== -1) {
             // Replace existing message (optimistic -> real)
             const newMessages = [...prev];
-            newMessages[existingIndex] = message;
+            newMessages[existingIndex] = messageWithId;
             return newMessages;
           }
           
           // Add new message if not found
-          return [...prev, message];
+          return [...prev, messageWithId];
         });
       });
 
@@ -75,7 +105,12 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({ sessionId, isOpen, onClose
       const unsubscribeHistory = chatService.onHistoryLoaded((history: ChatMessage[]) => {
         console.log('Received chat history from socket:', history);
         if (history.length > 0) {
-          setMessages(history);
+          // Ensure all messages have IDs
+          const historyWithIds = history.map(msg => ({
+            ...msg,
+            id: msg.id || `hist-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`
+          }));
+          setMessages(historyWithIds);
         }
       });
 
@@ -84,7 +119,7 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({ sessionId, isOpen, onClose
         unsubscribeHistory();
       };
     }
-  }, [isOpen, sessionId, user, isInitialized]);
+  }, [isInitialized, isOpen]);
 
   // Auto-scroll to bottom when new messages arrive
   useEffect(() => {
@@ -106,7 +141,7 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({ sessionId, isOpen, onClose
 
     // Create optimistic message to show immediately
     const optimisticMessage: ChatMessage = {
-      id: `temp-${Date.now()}`, // Temporary ID
+      id: `temp-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`, // Temporary ID with random suffix
       sessionId,
       userId: user._id,
       userName: user.name,

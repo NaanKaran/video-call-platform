@@ -1,5 +1,6 @@
 import { io, Socket } from 'socket.io-client';
-import { SocketEvents } from '../types';
+import type { SocketEvents } from '../types';
+import config from '../config/environment';
 
 class SocketService {
   private socket: Socket | null = null;
@@ -9,11 +10,12 @@ class SocketService {
   connect(userId: string): void {
     if (this.socket?.connected) return;
 
-    this.socket = io('http://localhost:3000', {
+    this.socket = io(config.SOCKET_BASE_URL, {
       auth: {
         userId,
         token: localStorage.getItem('token'),
       },
+      transports: ['websocket', 'polling'], // Ensure both transports are allowed
     });
 
     this.socket.on('connect', () => {

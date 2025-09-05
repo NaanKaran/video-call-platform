@@ -1,5 +1,16 @@
 @import 'tailwindcss';
 
+/* Global CSS reset to prevent scrollbars */
+html, body {
+  height: 100%;
+  overflow: hidden;
+}
+
+#root {
+  height: 100vh;
+  overflow: hidden;
+}
+
 /* Custom scrollbar */
 ::-webkit-scrollbar {
   width: 6px;

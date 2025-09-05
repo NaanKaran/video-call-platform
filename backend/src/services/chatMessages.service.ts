@@ -1,5 +1,5 @@
 import { Service } from 'typedi';
-import { ChatMessage, ChatMessageModel } from '@models/chatMessages.model';
+import { ChatMessage, getChatMessageModel } from '@models/chatMessages.model';
 import { HttpException } from '@exceptions/HttpException';
 
 export interface CreateChatMessageDto {
@@ -17,6 +17,7 @@ export class ChatMessageService {
    */
   public async createChatMessage(messageData: CreateChatMessageDto): Promise<ChatMessage> {
     try {
+      const ChatMessageModel = await getChatMessageModel();
       const chatMessage = await ChatMessageModel.create({
         ...messageData,
         timestamp: new Date(),
@@ -33,6 +34,7 @@ export class ChatMessageService {
    */
   public async getChatMessagesBySession(sessionId: string, limit: number = 100): Promise<ChatMessage[]> {
     try {
+      const ChatMessageModel = await getChatMessageModel();
       const chatMessages = await ChatMessageModel
         .find({ sessionId })
         .sort({ timestamp: 1 })
@@ -50,6 +52,7 @@ export class ChatMessageService {
    */
   public async getRecentChatMessages(sessionId: string, limit: number = 50): Promise<ChatMessage[]> {
     try {
+      const ChatMessageModel = await getChatMessageModel();
       const chatMessages = await ChatMessageModel
         .find({ sessionId })
         .sort({ timestamp: -1 })
@@ -68,6 +71,7 @@ export class ChatMessageService {
    */
   public async deleteChatMessagesBySession(sessionId: string): Promise<void> {
     try {
+      const ChatMessageModel = await getChatMessageModel();
       await ChatMessageModel.deleteMany({ sessionId });
     } catch (error: any) {
       throw new HttpException(400, `Failed to delete chat messages: ${error.message}`);
@@ -79,6 +83,7 @@ export class ChatMessageService {
    */
   public async getChatMessageCount(sessionId: string): Promise<number> {
     try {
+      const ChatMessageModel = await getChatMessageModel();
       return await ChatMessageModel.countDocuments({ sessionId });
     } catch (error: any) {
       throw new HttpException(400, `Failed to count chat messages: ${error.message}`);
@@ -90,6 +95,7 @@ export class ChatMessageService {
    */
   public async deleteOldChatMessages(olderThanDays: number = 30): Promise<number> {
     try {
+      const ChatMessageModel = await getChatMessageModel();
       const cutoffDate = new Date();
       cutoffDate.setDate(cutoffDate.getDate() - olderThanDays);
 

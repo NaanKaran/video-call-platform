@@ -2,10 +2,10 @@ import { hash, compare } from 'bcrypt';
 import { sign } from 'jsonwebtoken';
 import { Service } from 'typedi';
 import { SECRET_KEY } from '@config';
-import { HttpException } from '@exceptions/httpException';
+import { HttpException } from '@exceptions/HttpException';
 import { DataStoredInToken, TokenData } from '@interfaces/auth.interface';
 import { User } from '@interfaces/users.interface';
-import { UserModel } from '@models/users.model';
+import { getUserModel } from '@models/users.model';
 import { CreateUserDto, LoginDto } from '@dtos/users.dto';
 import { isEmpty } from '@utils/util';
 
@@ -31,6 +31,7 @@ export class AuthService {
   public async signup(userData: CreateUserDto): Promise<UserResponse> {
     if (isEmpty(userData)) throw new HttpException(400, 'User data is empty');
 
+    const UserModel = await getUserModel();
     const findUser: User = await UserModel.findOne({ email: userData.email });
     if (findUser) throw new HttpException(409, `This email ${userData.email} already exists`);
 
@@ -47,6 +48,7 @@ export class AuthService {
   public async login(userData: LoginDto): Promise<{ cookie: string; token: string; findUser: UserResponse }> {
     if (isEmpty(userData)) throw new HttpException(400, 'User data is empty');
 
+    const UserModel = await getUserModel();
     const findUser: User = await UserModel.findOne({ email: userData.email });
     if (!findUser) throw new HttpException(409, `This email ${userData.email} was not found`);
 
@@ -68,6 +70,7 @@ export class AuthService {
   public async logout(userData: any): Promise<UserResponse> {
     if (isEmpty(userData)) throw new HttpException(400, 'User data is empty');
 
+    const UserModel = await getUserModel();
     const findUser: User = await UserModel.findById(userData.userId);
     if (!findUser) throw new HttpException(409, `User not found`);
 

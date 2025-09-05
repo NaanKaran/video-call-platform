@@ -9,7 +9,7 @@ import {
   XMarkIcon
 } from '@heroicons/react/24/outline';
 import { useAuth } from '../../hooks/useAuth';
-import { Session } from '../../types';
+import type { Session } from '../../types';
 import sessionService from '../../services/sessionService';
 import { clsx } from 'clsx';
 
@@ -27,9 +27,13 @@ const Dashboard: React.FC = () => {
       try {
         setLoading(true);
         const data = await sessionService.getSessions();
-        setSessions(data);
+        // Ensure data is always an array
+        setSessions(Array.isArray(data) ? data : []);
       } catch (err: any) {
+        console.error('Failed to load sessions:', err);
         setError(err.response?.data?.message || 'Failed to load sessions');
+        // Keep sessions as empty array on error
+        setSessions([]);
       } finally {
         setLoading(false);
       }
@@ -38,28 +42,6 @@ const Dashboard: React.FC = () => {
     loadSessions();
   }, []);
 
-  // Format date and time for display
-  const formatDateTime = (dateString: string) => {
-    const date = new Date(dateString);
-    return {
-      date: date.toLocaleDateString(),
-      time: date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-    };
-  };
-
-  // Get status color classes
-  const getStatusColor = (status: string) => {
-    switch (status) {
-      case 'scheduled':
-        return 'bg-blue-100 text-blue-800';
-      case 'active':
-        return 'bg-green-100 text-green-800';
-      case 'ended':
-        return 'bg-gray-100 text-gray-800';
-      default:
-        return 'bg-gray-100 text-gray-800';
-    }
-  };
 
   // Join a session
   const handleJoinSession = (sessionId: string) => {
@@ -72,20 +54,21 @@ const Dashboard: React.FC = () => {
 
     try {
       await sessionService.deleteSession(sessionId);
-      setSessions(sessions.filter(s => s._id !== sessionId));
+      setSessions((prevSessions) => (prevSessions || []).filter(s => s?._id !== sessionId));
     } catch (err: any) {
+      console.error('Failed to delete session:', err);
       alert(err.response?.data?.message || 'Failed to delete session');
     }
   };
 
-  // Filter sessions by status
-  const scheduledSessions = sessions.filter(s => s.status === 'scheduled');
-  const activeSessions = sessions.filter(s => s.status === 'active');
-  const endedSessions = sessions.filter(s => s.status === 'ended');
+  // Filter sessions by status (with safety checks)
+  const scheduledSessions = (sessions || []).filter(s => s?.status === 'scheduled');
+  const activeSessions = (sessions || []).filter(s => s?.status === 'active');
+  const endedSessions = (sessions || []).filter(s => s?.status === 'ended');
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+      <div className="h-full bg-gray-50 flex items-center justify-center">
         <div className="text-center">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto"></div>
           <p className="mt-4 text-gray-600">Loading your sessions...</p>
@@ -95,7 +78,7 @@ const Dashboard: React.FC = () => {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="h-full bg-gray-50 overflow-auto">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         {/* Header */}
         <div className="mb-8">

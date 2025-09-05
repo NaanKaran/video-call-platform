@@ -20,16 +20,16 @@ export class App {
   public app: express.Application;
   public server: HttpServer;
   public env: string;
-  public port: string | number;
+  public port: number;
   public socketHandler: SocketHandler;
 
   constructor(routes: Routes[]) {
+    console.log('🚀 Initializing app...');
     this.app = express();
     this.server = createServer(this.app);
     this.env = NODE_ENV || 'development';
-    this.port = PORT || 3000;
+    this.port = Number(PORT) || 3000; // ✅ ensure number
 
-    this.connectToDatabase();
     this.initializeMiddlewares();
     this.initializeRoutes(routes);
     this.initializeSwagger();
@@ -38,11 +38,12 @@ export class App {
   }
 
   public listen() {
-    this.server.listen(this.port, () => {
+    // ✅ bind to 0.0.0.0 for Docker & WebRTC signaling
+    this.server.listen(this.port, '0.0.0.0', () => {
       logger.info(`=================================`);
       logger.info(`======= ENV: ${this.env} =======`);
-      logger.info(`🚀 App listening on the port ${this.port}`);
-      logger.info(`📡 Socket.io server is running`);
+      logger.info(`🚀 App listening on http://0.0.0.0:${this.port}`);
+      logger.info(`📡 Socket.io signaling server is running`);
       logger.info(`=================================`);
     });
   }
@@ -51,14 +52,19 @@ export class App {
     return this.app;
   }
 
-  private async connectToDatabase() {
-    console.log("⏳ Connecting to database...");
+  private initializeSocket() {
+    this.socketHandler = new SocketHandler(this.server);
+    logger.info('✅ Socket.IO initialized');
+  }
+
+  public async connectToDatabase() {
+    logger.info('⏳ Connecting to database...');
     try {
       await dbConnection();
-      console.log("✅ Database connected");
+      logger.info('✅ Database connected');
     } catch (err) {
-      console.error("❌ Database connection failed:", err);
-      process.exit(1); // fail fast
+      logger.error('❌ Database connection failed:', err);
+      throw err;
     }
   }
 
@@ -74,24 +80,21 @@ export class App {
   }
 
   private initializeRoutes(routes: Routes[]) {
-      this.app.get('/', (req, res) => {
-    res.send('✅ App is running on Azure');
-  });
+    this.app.get('/', (req, res) => {
+      res.send('✅ App is running in container');
+    });
 
-  this.app.get('/health', (req, res) => {
-    res.send('OK');
-  });
+    this.app.get('/health', (req, res) => {
+      res.send('OK');
+    });
 
     this.app.get('/api', (req, res) => {
       res.send('API is working');
     });
+
     routes.forEach(route => {
       this.app.use('/api', route.router);
     });
-  }
-
-  private initializeSocket() {
-    this.socketHandler = new SocketHandler(this.server);
   }
 
   private initializeSwagger() {
@@ -101,11 +104,11 @@ export class App {
         info: {
           title: 'Video Call Platform API',
           version: '1.0.0',
-          description: 'API for Video Call Platform with WebRTC support',
+          description: 'API for Video Call Platform with WebRTC signaling',
         },
         servers: [
           {
-            url: 'http://localhost:3000/api',
+            url: `http://localhost:${this.port}/api`,
             description: 'Development server',
           },
         ],

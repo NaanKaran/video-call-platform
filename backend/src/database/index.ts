@@ -1,14 +1,8 @@
-import { connect, set } from 'mongoose';
-import { NODE_ENV, MONGO_URI, DB_DATABASE } from '@config';
+import { DatabaseConnectionManager } from './DatabaseConnectionManager';
 
 export const dbConnection = async () => {
-  const dbConfig = {
-    url: MONGO_URI
-  };
+  const dbManager = DatabaseConnectionManager.getInstance();
+  await dbManager.connect();
+};
 
-  
-    set('debug', true);
-  
-
-  await connect(dbConfig.url);
-}
+export { DatabaseConnectionManager };
